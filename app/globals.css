@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+ 
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+ 
+    --primary: 0 84% 50%;
+    --primary-foreground: 0 0% 100%;
+ 
+    --secondary: 45 100% 51%;
+    --secondary-foreground: 0 0% 10%;
+ 
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+ 
+    --accent: 174 100% 29%;
+    --accent-foreground: 0 0% 100%;
+ 
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 0 84% 50%;
+ 
+    --radius: 0.5rem;
+
+    /* Custom Caribbean colors */
+    --trini-red: 0 84% 50%;
+    --trini-gold: 45 100% 51%;
+    --trini-black: 0 0% 10%;
+    --caribbean-teal: 174 100% 29%;
+    --tropical-orange: 25 95% 53%;
+    --island-green: 142 71% 45%;
+    --ocean-blue: 199 89% 48%;
+    --sunset-pink: 330 81% 60%;
+    --palm-green: 120 39% 35%;
+  }
+ 
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+ 
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+ 
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+ 
+    --primary: 0 84% 60%;
+    --primary-foreground: 0 0% 100%;
+ 
+    --secondary: 45 100% 51%;
+    --secondary-foreground: 0 0% 10%;
+ 
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+ 
+    --accent: 174 100% 35%;
+    --accent-foreground: 0 0% 100%;
+ 
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 0 84% 60%;
+  }
+}
+ 
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom gradient backgrounds */
+.gradient-trini {
+  background: linear-gradient(135deg, hsl(0 84% 50%) 0%, hsl(0 0% 10%) 50%, hsl(0 84% 50%) 100%);
+}
+
+.gradient-caribbean {
+  background: linear-gradient(135deg, hsl(174 100% 29%) 0%, hsl(199 89% 48%) 50%, hsl(142 71% 45%) 100%);
+}
+
+.gradient-sunset {
+  background: linear-gradient(135deg, hsl(25 95% 53%) 0%, hsl(330 81% 60%) 50%, hsl(45 100% 51%) 100%);
+}
+
+.gradient-tropical {
+  background: linear-gradient(135deg, hsl(142 71% 45%) 0%, hsl(174 100% 29%) 50%, hsl(199 89% 48%) 100%);
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 0.3s ease;
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+/* Animated gradient text */
+.gradient-text {
+  background: linear-gradient(90deg, hsl(0 84% 50%), hsl(45 100% 51%), hsl(0 84% 50%));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shine 3s linear infinite;
+}
+
+@keyframes shine {
+  to {
+    background-position: 200% center;
+  }
+}
+
+/* Pulse animation for badges */
+.pulse-badge {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
