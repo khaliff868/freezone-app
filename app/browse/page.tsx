@@ -50,6 +50,7 @@ interface Listing {
   views: number;
   featured: boolean;
   boosted: boolean;
+  featuredStatus?: 'ACTIVE' | 'NONE';
   user: { id: string; name: string; avatar: string | null; location: string | null };
   createdAt: string;
 }
