@@ -22,6 +22,7 @@ type Listing = {
   location: string;
   swapTerms: string | null;
   featured: boolean;
+  featuredStatus?: 'ACTIVE' | 'NONE';
   images: string[];
   createdAt: string;
   updatedAt: string;
@@ -32,7 +33,7 @@ type Listing = {
     tier: string;
     verified: boolean;
   };
-};
+};;
 
 type UserListing = {
   id: string;
