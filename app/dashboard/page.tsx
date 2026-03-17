@@ -17,6 +17,7 @@ type Listing = {
   category: string;
   location: string;
   featured: boolean;
+  featuredStatus?: 'ACTIVE' | 'NONE';
   createdAt: string;
   images?: string[];
   views?: number;
