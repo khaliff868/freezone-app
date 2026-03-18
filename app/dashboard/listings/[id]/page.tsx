@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Tag, Clock, User, Star, DollarSign, RefreshCcw, Edit, Trash2, CreditCard, AlertCircle, MessageSquare, ArrowRightLeft, X, Check, Loader2, Building, Landmark, Copy, Upload, ExternalLink, Heart } from 'lucide-react';
+import { ArrowLeft, MapPin, Tag, Clock, User, Star, RefreshCcw, Edit, Trash2, CreditCard, AlertCircle, MessageSquare, ArrowRightLeft, X, Check, Loader2, Building, Landmark, Copy, Upload, ExternalLink, Heart } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 import { ImageGallery } from '@/components/ui/image-gallery';
@@ -98,12 +98,10 @@ export default function ListingDetailPage() {
       return { expired: false, timeString: '' };
     }
     const createdAt = new Date(listing.createdAt).getTime();
-    const expiresAt = createdAt + (72 * 60 * 60 * 1000);
+    const expiresAt = createdAt + 72 * 60 * 60 * 1000;
     const now = Date.now();
     const remaining = expiresAt - now;
-    if (remaining <= 0) {
-      return { expired: true, timeString: '' };
-    }
+    if (remaining <= 0) return { expired: true, timeString: '' };
     const hours = Math.floor(remaining / (1000 * 60 * 60));
     const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
     return { expired: false, timeString: `${hours}h ${minutes}m` };
@@ -126,9 +124,7 @@ export default function ListingDetailPage() {
   }, [listing, calculateTimeRemaining]);
 
   useEffect(() => {
-    if (listingId) {
-      loadListing();
-    }
+    if (listingId) loadListing();
   }, [listingId]);
 
   useEffect(() => {
@@ -146,9 +142,7 @@ export default function ListingDetailPage() {
       setLoading(true);
       const data = await apiClient<{ listing: Listing }>(`/api/listings/${listingId}`);
       setListing(data.listing);
-      if (session?.user?.id) {
-        checkWishlistStatus();
-      }
+      if (session?.user?.id) checkWishlistStatus();
     } catch (error: any) {
       console.error('Error loading listing:', error);
       toast.error('Failed to load listing');
@@ -171,34 +165,22 @@ export default function ListingDetailPage() {
   };
 
   const toggleWishlist = async () => {
-    if (!session?.user?.id) {
-      toast.error('Please login to save items');
-      return;
-    }
+    if (!session?.user?.id) { toast.error('Please login to save items'); return; }
     setTogglingWishlist(true);
     try {
       if (isWishlisted) {
         const res = await fetch(`/api/wishlist?listingId=${listingId}`, { method: 'DELETE' });
-        if (res.ok) {
-          setIsWishlisted(false);
-          toast.success('Removed from wishlist');
-        }
+        if (res.ok) { setIsWishlisted(false); toast.success('Removed from wishlist'); }
       } else {
         const res = await fetch('/api/wishlist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ listingId }),
         });
-        if (res.ok) {
-          setIsWishlisted(true);
-          toast.success('Added to wishlist');
-        } else {
-          const error = await res.json();
-          toast.error(error.error || 'Failed to add to wishlist');
-        }
+        if (res.ok) { setIsWishlisted(true); toast.success('Added to wishlist'); }
+        else { const error = await res.json(); toast.error(error.error || 'Failed to add to wishlist'); }
       }
     } catch (error) {
-      console.error('Error toggling wishlist:', error);
       toast.error('Failed to update wishlist');
     } finally {
       setTogglingWishlist(false);
@@ -217,10 +199,7 @@ export default function ListingDetailPage() {
   };
 
   const handlePayFee = () => {
-    if (!session?.user?.id) {
-      toast.error('Please login to pay');
-      return;
-    }
+    if (!session?.user?.id) { toast.error('Please login to pay'); return; }
     setShowPaymentModal(true);
     setPaymentStep('select');
     setSelectedPaymentMethod(null);
@@ -237,42 +216,10 @@ export default function ListingDetailPage() {
         body: JSON.stringify({ listingId, method }),
       });
       const data = await res.json();
-      if (res.ok) {
-        setPaymentInfo(data);
-        setPaymentStep('details');
-      } else {
-        toast.error(data.error || 'Failed to initiate payment');
-      }
-    } catch (error) {
+      if (res.ok) { setPaymentInfo(data); setPaymentStep('details'); }
+      else toast.error(data.error || 'Failed to initiate payment');
+    } catch {
       toast.error('Payment service unavailable. Please try again later.');
-    } finally {
-      setProcessingPayment(false);
-    }
-  };
-
-  const handlePayPalSuccess = async (orderId: string) => {
-    if (!paymentInfo) return;
-    setProcessingPayment(true);
-    try {
-      const res = await fetch('/api/payments/paypal/capture', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId,
-          paymentId: paymentInfo.paymentId,
-          listingId,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success('Payment successful! Your listing is now active. 🎉');
-        setShowPaymentModal(false);
-        loadListing();
-      } else {
-        toast.error(data.message || 'Payment failed');
-      }
-    } catch (error) {
-      toast.error('Failed to complete payment');
     } finally {
       setProcessingPayment(false);
     }
@@ -290,27 +237,16 @@ export default function ListingDetailPage() {
       const presignedRes = await fetch('/api/upload/presigned', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName: file.name,
-          contentType: file.type,
-          isPublic: false,
-        }),
+        body: JSON.stringify({ fileName: file.name, contentType: file.type, isPublic: false }),
       });
       if (!presignedRes.ok) throw new Error('Failed to get upload URL');
       const { uploadUrl, cloud_storage_path } = await presignedRes.json();
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      });
+      const uploadRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
       if (!uploadRes.ok) throw new Error('Failed to upload file');
       const proofRes = await fetch('/api/payments/upload-proof', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          paymentId: paymentInfo.paymentId,
-          proofUrl: cloud_storage_path,
-        }),
+        body: JSON.stringify({ paymentId: paymentInfo.paymentId, proofUrl: cloud_storage_path }),
       });
       if (proofRes.ok) {
         toast.success('Payment proof uploaded! We will verify your payment within 24-48 hours.');
@@ -321,7 +257,6 @@ export default function ListingDetailPage() {
         toast.error(error.error || 'Failed to save proof');
       }
     } catch (error) {
-      console.error('Upload error:', error);
       toast.error('Failed to upload proof. Please try again.');
     } finally {
       setUploadingProof(false);
@@ -329,29 +264,18 @@ export default function ListingDetailPage() {
   };
 
   const handleContactSeller = () => {
-    if (!session?.user?.id) {
-      toast.error('Please login to contact seller');
-      router.push('/auth/login');
-      return;
-    }
+    if (!session?.user?.id) { toast.error('Please login to contact seller'); router.push('/auth/login'); return; }
     setShowMessageModal(true);
   };
 
   const handleSendMessage = async () => {
-    if (!message.trim()) {
-      toast.error('Please enter a message');
-      return;
-    }
+    if (!message.trim()) { toast.error('Please enter a message'); return; }
     setSendingMessage(true);
     try {
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipientId: listing?.user.id,
-          listingId: listing?.id,
-          initialMessage: message.trim(),
-        }),
+        body: JSON.stringify({ recipientId: listing?.user.id, listingId: listing?.id, initialMessage: message.trim() }),
       });
       if (res.ok) {
         const conv = await res.json();
@@ -361,19 +285,12 @@ export default function ListingDetailPage() {
         const error = await res.json();
         toast.error(error.error || 'Failed to send message');
       }
-    } catch (error) {
-      toast.error('Something went wrong');
-    } finally {
-      setSendingMessage(false);
-    }
+    } catch { toast.error('Something went wrong'); }
+    finally { setSendingMessage(false); }
   };
 
   const handleProposeSwap = async () => {
-    if (!session?.user?.id) {
-      toast.error('Please login to propose a swap');
-      router.push('/auth/login');
-      return;
-    }
+    if (!session?.user?.id) { toast.error('Please login to propose a swap'); router.push('/auth/login'); return; }
     try {
       const res = await fetch('/api/listings?type=swap&status=ACTIVE');
       if (res.ok) {
@@ -384,40 +301,22 @@ export default function ListingDetailPage() {
         setUserListings(swappable);
         setShowSwapModal(true);
       }
-    } catch (error) {
-      toast.error('Failed to load your listings');
-    }
+    } catch { toast.error('Failed to load your listings'); }
   };
 
   const handleSubmitSwap = async () => {
-    if (!selectedListing) {
-      toast.error('Please select a listing to offer');
-      return;
-    }
+    if (!selectedListing) { toast.error('Please select a listing to offer'); return; }
     setSendingSwap(true);
     try {
       const res = await fetch('/api/swaps', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          offeredListingId: selectedListing,
-          requestedListingId: listingId,
-          message: swapMessage.trim() || null,
-        }),
+        body: JSON.stringify({ offeredListingId: selectedListing, requestedListingId: listingId, message: swapMessage.trim() || null }),
       });
-      if (res.ok) {
-        toast.success('Swap offer sent! 🔄');
-        setShowSwapModal(false);
-        router.push('/dashboard/swaps');
-      } else {
-        const error = await res.json();
-        toast.error(error.error || 'Failed to send swap offer');
-      }
-    } catch (error) {
-      toast.error('Something went wrong');
-    } finally {
-      setSendingSwap(false);
-    }
+      if (res.ok) { toast.success('Swap offer sent! 🔄'); setShowSwapModal(false); router.push('/dashboard/swaps'); }
+      else { const error = await res.json(); toast.error(error.error || 'Failed to send swap offer'); }
+    } catch { toast.error('Something went wrong'); }
+    finally { setSendingSwap(false); }
   };
 
   const getStatusBadge = (status: string) => {
@@ -486,27 +385,13 @@ export default function ListingDetailPage() {
 
   const getCategoryEmoji = (category: string) => {
     const emojis: Record<string, string> = {
-      'Swaps': '🔄',
-      'Free Items': '🎁',
-      'Beauty & Personal Care': '💄',
-      'Electronics': '📱',
-      'Vehicles': '🚗',
-      'Auto Parts & Accessories': '🔧',
-      'Real Estate': '🏠',
-      'Construction Materials': '🧱',
-      'Home & Garden': '🏡',
-      'Furniture': '🪑',
-      'Appliances': '🍳',
-      'Fashion': '👗',
-      'Sports & Outdoors': '⚽',
-      'Books & Education': '📚',
-      'Kids & Baby': '👶',
-      'Services': '🛠️',
-      'Food & Catering': '🍽️',
-      'Business & Industrial': '🏭',
-      'Events & Tickets': '🎫',
-      'Pets & Livestock': '🐾',
-      'Art & Collectibles': '🎨',
+      'Swaps': '🔄', 'Free Items': '🎁', 'Beauty & Personal Care': '💄',
+      'Electronics': '📱', 'Vehicles': '🚗', 'Auto Parts & Accessories': '🔧',
+      'Real Estate': '🏠', 'Construction Materials': '🧱', 'Home & Garden': '🏡',
+      'Furniture': '🪑', 'Appliances': '🍳', 'Fashion': '👗',
+      'Sports & Outdoors': '⚽', 'Books & Education': '📚', 'Kids & Baby': '👶',
+      'Services': '🛠️', 'Food & Catering': '🍽️', 'Business & Industrial': '🏭',
+      'Events & Tickets': '🎫', 'Pets & Livestock': '🐾', 'Art & Collectibles': '🎨',
       'Other': '📦',
     };
     return emojis[category] || '📦';
@@ -532,12 +417,8 @@ export default function ListingDetailPage() {
           <AlertCircle className="w-20 h-20 text-trini-red mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Listing Not Found</h2>
           <p className="text-gray-600 mb-6">This listing may have been removed or doesn't exist.</p>
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-trini-red to-tropical-orange text-white font-semibold rounded-xl hover:scale-105 transition-transform"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Dashboard
+          <Link href="/dashboard" className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-trini-red to-tropical-orange text-white font-semibold rounded-xl hover:scale-105 transition-transform">
+            <ArrowLeft className="w-5 h-5" />Back to Dashboard
           </Link>
         </div>
       </div>
@@ -547,18 +428,14 @@ export default function ListingDetailPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-trini-red transition mb-6"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Back to Dashboard
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-gray-600 hover:text-trini-red transition mb-6">
+          <ArrowLeft className="w-5 h-5" />Back to Dashboard
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Image Gallery or Category Header */}
+            {/* Image Gallery */}
             <div className="bg-white rounded-2xl shadow-lg p-4 relative">
               {listing.images && listing.images.length > 0 ? (
                 <ImageGallery images={listing.images} alt={listing.title} />
@@ -571,10 +448,9 @@ export default function ListingDetailPage() {
                 </div>
               )}
               <div className="absolute top-6 left-6 flex gap-2">
-                {listing.featuredStatus === "ACTIVE" && (
+                {listing.featuredStatus === 'ACTIVE' && (
                   <span className="px-3 py-1.5 bg-trini-gold text-trini-black text-sm font-bold rounded-full flex items-center gap-1.5 shadow-md">
-                    <Star className="w-4 h-4" />
-                    Featured
+                    <Star className="w-4 h-4" />Featured
                   </span>
                 )}
               </div>
@@ -586,16 +462,10 @@ export default function ListingDetailPage() {
                   <button
                     onClick={toggleWishlist}
                     disabled={togglingWishlist}
-                    className={`p-2 rounded-full shadow-md transition-colors ${
-                      isWishlisted ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-600 hover:bg-gray-100'
-                    }`}
+                    className={`p-2 rounded-full shadow-md transition-colors ${isWishlisted ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
                     title={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
                   >
-                    {togglingWishlist ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />
-                    )}
+                    {togglingWishlist ? <Loader2 className="w-5 h-5 animate-spin" /> : <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />}
                   </button>
                 )}
               </div>
@@ -613,8 +483,7 @@ export default function ListingDetailPage() {
               {listing.swapTerms && (
                 <div className="mt-6 p-4 bg-tropical-purple/10 rounded-xl border border-tropical-purple/20">
                   <h3 className="font-semibold text-tropical-purple flex items-center gap-2 mb-2">
-                    <RefreshCcw className="w-5 h-5" />
-                    Swap Terms
+                    <RefreshCcw className="w-5 h-5" />Swap Terms
                   </h3>
                   <p className="text-gray-700">{listing.swapTerms}</p>
                 </div>
@@ -628,8 +497,7 @@ export default function ListingDetailPage() {
                 <div className="p-4 bg-gray-50 rounded-xl">
                   <p className="text-sm text-gray-500 mb-1">Category</p>
                   <p className="font-semibold text-gray-900 flex items-center gap-2">
-                    <Tag className="w-4 h-4 text-caribbean-teal" />
-                    {listing.category}
+                    <Tag className="w-4 h-4 text-caribbean-teal" />{listing.category}
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-xl">
@@ -641,15 +509,13 @@ export default function ListingDetailPage() {
                 <div className="p-4 bg-gray-50 rounded-xl">
                   <p className="text-sm text-gray-500 mb-1">Location</p>
                   <p className="font-semibold text-gray-900 flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-trini-red" />
-                    {listing.location}
+                    <MapPin className="w-4 h-4 text-trini-red" />{listing.location}
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-xl">
                   <p className="text-sm text-gray-500 mb-1">Posted</p>
                   <p className="font-semibold text-gray-900 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-tropical-orange" />
-                    {new Date(listing.createdAt).toLocaleDateString()}
+                    <Clock className="w-4 h-4 text-tropical-orange" />{new Date(listing.createdAt).toLocaleDateString()}
                   </p>
                 </div>
               </div>
@@ -685,7 +551,7 @@ export default function ListingDetailPage() {
                     {listing.user.verified && (
                       <span className="w-5 h-5 bg-caribbean-teal rounded-full flex items-center justify-center">
                         <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                          <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
                         </svg>
                       </span>
                     )}
@@ -711,7 +577,7 @@ export default function ListingDetailPage() {
               )}
             </div>
 
-            {/* Actions */}
+            {/* Actions (owner only) */}
             {isOwner && (
               <div className="bg-white rounded-2xl shadow-lg p-6 space-y-3">
                 <h3 className="font-bold text-gray-900 mb-4">Actions</h3>
@@ -728,14 +594,10 @@ export default function ListingDetailPage() {
                     <AlertCircle className="w-4 h-4 inline mr-2" />
                     Payment of 100 TTD required to publish this listing.
                     {!paymentExpired && timeRemaining && (
-                      <p className="text-sm text-gray-600 mt-2">
-                        Payment request expires in: {timeRemaining}
-                      </p>
+                      <p className="text-sm text-gray-600 mt-2">Payment request expires in: {timeRemaining}</p>
                     )}
                     {paymentExpired && (
-                      <p className="text-sm text-red-600 mt-2 font-semibold">
-                        This payment request has expired. Please create a new request.
-                      </p>
+                      <p className="text-sm text-red-600 mt-2 font-semibold">This payment request has expired. Please create a new request.</p>
                     )}
                   </div>
                 )}
@@ -751,11 +613,7 @@ export default function ListingDetailPage() {
                   <button
                     onClick={handlePayFee}
                     disabled={paymentExpired}
-                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 font-semibold rounded-xl transition-transform ${
-                      paymentExpired
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-caribbean-green to-tropical-lime text-white hover:scale-105'
-                    }`}
+                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 font-semibold rounded-xl transition-transform ${paymentExpired ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-caribbean-green to-tropical-lime text-white hover:scale-105'}`}
                   >
                     <CreditCard className="w-5 h-5" />
                     {paymentExpired ? 'Payment Expired' : 'Submit Payment (100 TTD)'}
@@ -776,12 +634,9 @@ export default function ListingDetailPage() {
                       }}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-green to-tropical-lime text-white font-semibold rounded-xl hover:scale-105 transition-transform"
                     >
-                      <RefreshCcw className="w-5 h-5" />
-                      Renew Free
+                      <RefreshCcw className="w-5 h-5" />Renew Free
                     </button>
-                    <p className="text-xs text-gray-500 mt-2 text-center">
-                      Renews this free listing for another 30 days after admin approval.
-                    </p>
+                    <p className="text-xs text-gray-500 mt-2 text-center">Renews this free listing for another 30 days after admin approval.</p>
                   </div>
                 )}
 
@@ -799,60 +654,37 @@ export default function ListingDetailPage() {
                       }}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-trini-gold to-tropical-orange text-white font-semibold rounded-xl hover:scale-105 transition-transform"
                     >
-                      <RefreshCcw className="w-5 h-5" />
-                      Renew for 100 TTD
+                      <RefreshCcw className="w-5 h-5" />Renew for 100 TTD
                     </button>
-                    <p className="text-xs text-gray-500 mt-2 text-center">
-                      Submit payment proof to renew this listing for another 90 days.
-                    </p>
+                    <p className="text-xs text-gray-500 mt-2 text-center">Submit payment proof to renew this listing for another 90 days.</p>
                   </div>
                 )}
 
                 {(listing.status === 'DRAFT' || listing.status === 'PENDING_FEE') && (listing.listingType === 'SELL' || listing.listingType === 'BOTH') && (
-                  <button
-                    onClick={handlePayFee}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-green to-tropical-lime text-white font-semibold rounded-xl hover:scale-105 transition-transform"
-                  >
-                    <CreditCard className="w-5 h-5" />
-                    Pay Posting Fee
+                  <button onClick={handlePayFee} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-green to-tropical-lime text-white font-semibold rounded-xl hover:scale-105 transition-transform">
+                    <CreditCard className="w-5 h-5" />Pay Posting Fee
                   </button>
                 )}
 
-                <button
-                  onClick={() => router.push(`/dashboard/listings/${listingId}/edit`)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-caribbean-teal/10 text-caribbean-teal font-semibold rounded-xl hover:bg-caribbean-teal/20 transition"
-                >
-                  <Edit className="w-5 h-5" />
-                  Edit Listing
+                <button onClick={() => router.push(`/dashboard/listings/${listingId}/edit`)} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-caribbean-teal/10 text-caribbean-teal font-semibold rounded-xl hover:bg-caribbean-teal/20 transition">
+                  <Edit className="w-5 h-5" />Edit Listing
                 </button>
 
-                <button
-                  onClick={handleDelete}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-trini-red/10 text-trini-red font-semibold rounded-xl hover:bg-trini-red/20 transition"
-                >
-                  <Trash2 className="w-5 h-5" />
-                  Delete Listing
+                <button onClick={handleDelete} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-trini-red/10 text-trini-red font-semibold rounded-xl hover:bg-trini-red/20 transition">
+                  <Trash2 className="w-5 h-5" />Delete Listing
                 </button>
               </div>
             )}
 
-            {/* Contact Seller (if not owner) */}
+            {/* Contact Seller (not owner) */}
             {!isOwner && listing.status === 'ACTIVE' && (
               <div className="bg-white rounded-2xl shadow-lg p-6 space-y-3">
-                <button
-                  onClick={handleContactSeller}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-ocean-blue text-white font-semibold rounded-xl hover:scale-105 transition-transform"
-                >
-                  <MessageSquare className="w-5 h-5" />
-                  Contact Seller
+                <button onClick={handleContactSeller} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-ocean-blue text-white font-semibold rounded-xl hover:scale-105 transition-transform">
+                  <MessageSquare className="w-5 h-5" />Contact Seller
                 </button>
                 {(listing.listingType === 'SWAP' || listing.listingType === 'BOTH') && (
-                  <button
-                    onClick={handleProposeSwap}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-xl hover:scale-105 transition-transform"
-                  >
-                    <ArrowRightLeft className="w-5 h-5" />
-                    Propose Swap
+                  <button onClick={handleProposeSwap} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-xl hover:scale-105 transition-transform">
+                    <ArrowRightLeft className="w-5 h-5" />Propose Swap
                   </button>
                 )}
               </div>
@@ -911,8 +743,7 @@ export default function ListingDetailPage() {
                 </div>
                 {processingPayment && (
                   <div className="flex items-center justify-center gap-2 mt-4 text-gray-600">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Processing...
+                    <Loader2 className="w-5 h-5 animate-spin" />Processing...
                   </div>
                 )}
               </>
@@ -940,17 +771,14 @@ export default function ListingDetailPage() {
                 {paymentInfo.method === 'PAYPAL' ? (
                   <>
                     <p className="text-gray-600 mb-4">Click the button below to complete payment via PayPal.</p>
-                    <div id="paypal-button-container" className="mb-4">
-                      
-                        href={`https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=triniswap@example.com&amount=${paymentInfo.usdAmount}&currency_code=USD&item_name=${encodeURIComponent('Listing Fee: ' + (listing?.title || ''))}&custom=${paymentInfo.paymentId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition"
-                      >
-                        Pay with PayPal
-                        <ExternalLink className="w-5 h-5" />
-                      </a>
-                    </div>
+                    
+                      href={`https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=triniswap@example.com&amount=${paymentInfo.usdAmount}&currency_code=USD&item_name=${encodeURIComponent('Listing Fee: ' + (listing?.title || ''))}&custom=${paymentInfo.paymentId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition mb-4"
+                    >
+                      Pay with PayPal<ExternalLink className="w-5 h-5" />
+                    </a>
                     <p className="text-sm text-gray-500 text-center">After payment, your listing will be activated automatically.</p>
                   </>
                 ) : (
@@ -977,26 +805,15 @@ export default function ListingDetailPage() {
                     <div className="bg-trini-gold/10 border border-trini-gold/20 rounded-xl p-4 mb-4">
                       <p className="text-sm text-gray-700">{paymentInfo.instructions}</p>
                     </div>
-                    <div className="space-y-3">
-                      <p className="text-sm text-gray-600 text-center">After making the transfer/deposit, upload your receipt or proof of payment.</p>
-                      <label className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-caribbean-ocean text-white font-semibold rounded-xl hover:opacity-90 transition cursor-pointer">
-                        <input
-                          type="file"
-                          accept="image/*,.pdf"
-                          onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadProof(file); }}
-                          className="hidden"
-                          disabled={uploadingProof}
-                        />
-                        {uploadingProof ? <><Loader2 className="w-5 h-5 animate-spin" />Uploading...</> : <><Upload className="w-5 h-5" />Upload Payment Proof</>}
-                      </label>
-                    </div>
+                    <p className="text-sm text-gray-600 text-center mb-3">After making the transfer/deposit, upload your receipt or proof of payment.</p>
+                    <label className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-caribbean-ocean text-white font-semibold rounded-xl hover:opacity-90 transition cursor-pointer">
+                      <input type="file" accept="image/*,.pdf" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadProof(file); }} className="hidden" disabled={uploadingProof} />
+                      {uploadingProof ? <><Loader2 className="w-5 h-5 animate-spin" />Uploading...</> : <><Upload className="w-5 h-5" />Upload Payment Proof</>}
+                    </label>
                   </>
                 )}
 
-                <button
-                  onClick={() => { setPaymentStep('select'); setPaymentInfo(null); setSelectedPaymentMethod(null); }}
-                  className="w-full mt-4 px-4 py-2 text-gray-600 hover:text-gray-900 transition text-sm"
-                >
+                <button onClick={() => { setPaymentStep('select'); setPaymentInfo(null); setSelectedPaymentMethod(null); }} className="w-full mt-4 px-4 py-2 text-gray-600 hover:text-gray-900 transition text-sm">
                   ← Choose different payment method
                 </button>
               </>
@@ -1025,13 +842,8 @@ export default function ListingDetailPage() {
             />
             <div className="flex gap-3 mt-4">
               <button onClick={() => setShowMessageModal(false)} className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">Cancel</button>
-              <button
-                onClick={handleSendMessage}
-                disabled={sendingMessage || !message.trim()}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-ocean-blue text-white font-semibold rounded-xl hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {sendingMessage ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageSquare className="w-5 h-5" />}
-                Send
+              <button onClick={handleSendMessage} disabled={sendingMessage || !message.trim()} className="flex-1 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-ocean-blue text-white font-semibold rounded-xl hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                {sendingMessage ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageSquare className="w-5 h-5" />}Send
               </button>
             </div>
           </div>
@@ -1061,12 +873,7 @@ export default function ListingDetailPage() {
               <>
                 <div className="space-y-3 mb-4">
                   {userListings.map((item) => (
-                    <label
-                      key={item.id}
-                      className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition ${
-                        selectedListing === item.id ? 'border-tropical-purple bg-tropical-purple/10' : 'border-gray-200 hover:border-tropical-purple/50'
-                      }`}
-                    >
+                    <label key={item.id} className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition ${selectedListing === item.id ? 'border-tropical-purple bg-tropical-purple/10' : 'border-gray-200 hover:border-tropical-purple/50'}`}>
                       <input type="radio" name="swapListing" value={item.id} checked={selectedListing === item.id} onChange={(e) => setSelectedListing(e.target.value)} className="sr-only" />
                       <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                         {item.images[0] ? <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">📦</div>}
@@ -1079,22 +886,11 @@ export default function ListingDetailPage() {
                     </label>
                   ))}
                 </div>
-                <textarea
-                  value={swapMessage}
-                  onChange={(e) => setSwapMessage(e.target.value)}
-                  placeholder="Add a message (optional)..."
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-tropical-purple resize-none"
-                  rows={3}
-                />
+                <textarea value={swapMessage} onChange={(e) => setSwapMessage(e.target.value)} placeholder="Add a message (optional)..." className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-tropical-purple resize-none" rows={3} />
                 <div className="flex gap-3 mt-4">
                   <button onClick={() => setShowSwapModal(false)} className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">Cancel</button>
-                  <button
-                    onClick={handleSubmitSwap}
-                    disabled={sendingSwap || !selectedListing}
-                    className="flex-1 px-4 py-3 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-xl hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {sendingSwap ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRightLeft className="w-5 h-5" />}
-                    Send Offer
+                  <button onClick={handleSubmitSwap} disabled={sendingSwap || !selectedListing} className="flex-1 px-4 py-3 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-xl hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    {sendingSwap ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRightLeft className="w-5 h-5" />}Send Offer
                   </button>
                 </div>
               </>
