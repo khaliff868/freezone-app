@@ -555,8 +555,7 @@ export default function ListingDetailPage() {
                         </svg>
                       </span>
                     )}
-                  </p>
-                  <p className="text-sm text-gray-500">Member</p>
+              <p className="text-sm text-gray-500">Member</p>
                 </div>
               </div>
               {!isOwner && (
