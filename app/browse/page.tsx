@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -603,7 +605,6 @@ export default function BrowsePage() {
             {/* Horizontal Filter Bar */}
             <div className="bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-xl p-3 mb-4 shadow-sm">
               <div className="flex flex-wrap items-center gap-3">
-                {/* Min Price */}
                 <input
                   type="number"
                   value={minPrice}
@@ -611,8 +612,6 @@ export default function BrowsePage() {
                   placeholder="Min Price"
                   className="w-[110px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold"
                 />
-
-                {/* Max Price */}
                 <input
                   type="number"
                   value={maxPrice}
@@ -620,8 +619,6 @@ export default function BrowsePage() {
                   placeholder="Max Price"
                   className="w-[110px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold"
                 />
-
-                {/* Condition */}
                 <select
                   value={condition}
                   onChange={(e) => setCondition(e.target.value)}
@@ -634,8 +631,6 @@ export default function BrowsePage() {
                   <option value="FAIR" className="bg-white dark:bg-gray-800">Fair</option>
                   <option value="POOR" className="bg-white dark:bg-gray-800">Used</option>
                 </select>
-
-                {/* Listing Type */}
                 <select
                   value={listingType}
                   onChange={(e) => setListingType(e.target.value)}
@@ -646,8 +641,6 @@ export default function BrowsePage() {
                   <option value="SWAP" className="bg-white dark:bg-gray-800">Swap</option>
                   <option value="BOTH" className="bg-white dark:bg-gray-800">Free</option>
                 </select>
-
-                {/* Location */}
                 <select
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
@@ -665,8 +658,6 @@ export default function BrowsePage() {
                   <option value="Marabella" className="bg-white dark:bg-gray-800">Marabella</option>
                   <option value="Point Fortin" className="bg-white dark:bg-gray-800">Point Fortin</option>
                 </select>
-
-                {/* Sort */}
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
@@ -675,8 +666,6 @@ export default function BrowsePage() {
                   <option value="newest" className="bg-white dark:bg-gray-800">Newest First</option>
                   <option value="oldest" className="bg-white dark:bg-gray-800">Oldest First</option>
                 </select>
-
-                {/* View Toggle */}
                 <div className="flex bg-gray-100 dark:bg-white/10 rounded-lg p-1">
                   <button
                     onClick={() => setViewMode('grid')}
@@ -697,8 +686,6 @@ export default function BrowsePage() {
                     <List className="w-4 h-4" />
                   </button>
                 </div>
-
-                {/* Clear All Filters */}
                 {activeFiltersCount > 0 && (
                   <button
                     onClick={clearFilters}
@@ -711,7 +698,6 @@ export default function BrowsePage() {
               </div>
             </div>
 
-            {/* Filter Stats */}
             <div className="flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400 mb-4">
               <span>{loading ? 'Searching...' : `${results?.pagination.total || 0} listings found`}</span>
               {results && results.listings.filter(l => l.images && l.images.length > 0).length > 0 && (
@@ -719,194 +705,101 @@ export default function BrowsePage() {
               )}
             </div>
 
-            {/* Latest Listings Header */}
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               {category ? `${getCategoryEmoji(category)} ${category}` : '📋 Latest Listings'}
             </h2>
 
-            {/* Results */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-caribbean-teal border-t-transparent"></div>
-          </div>
-        ) : results?.listings.length === 0 ? (
-          <div className="bg-white/10 rounded-2xl p-12 text-center">
-            <Package className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No listings found</h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-6">Try adjusting your filters or search terms</p>
-            <button
-              onClick={clearFilters}
-              className="px-6 py-3 bg-gradient-to-r from-caribbean-teal to-ocean-blue text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
-            >
-              Clear Filters
-            </button>
-          </div>
-        ) : (
-          <>
-            <div
-              className={`grid gap-6 ${
-                viewMode === 'grid'
-                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-                  : 'grid-cols-1'
-              }`}
-            >
-              {results?.listings.map((listing) => (
-                <Link
-                  key={listing.id}
-                  href={`/dashboard/listings/${listing.id}`}
-                  className={`group bg-white dark:bg-white/10 rounded-xl overflow-hidden border border-gray-200 dark:border-transparent hover:border-caribbean-teal/50 shadow-sm hover:shadow-lg transition-all ${
-                    viewMode === 'list' ? 'flex' : ''
-                  }`}
-                >
-                  {/* Image */}
-                  <div
-                    className={`relative bg-white border-b border-gray-100 dark:border-white/10 ${
-                      viewMode === 'list' ? 'w-48 h-44 flex-shrink-0' : 'h-44'
-                    } flex items-center justify-center`}
-                  >
-                    {listing.images[0] ? (
-                      <img
-                        src={listing.images[0]}
-                        alt={listing.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <Package className="w-10 h-10 text-gray-400" />
-                    )}
-
-                    {/* Featured Badge */}
-                    {listing.featuredStatus === "ACTIVE" && (
-                      <div className="absolute top-2 left-2 px-2 py-1 bg-gradient-to-r from-trini-gold to-tropical-orange text-white text-xs font-semibold rounded-full flex items-center gap-1">
-                        <Star className="w-3 h-3" fill="currentColor" />
-                        Featured
-                      </div>
-                    )}
-
-                    {/* Type Badge */}
-                    <div className="absolute top-2 right-2 flex items-center gap-2">
-                      <span className="px-2 py-1 bg-black/50 backdrop-blur-sm rounded-full text-xs text-white">
-                        {listing.listingType === 'SELL' && (
-                          <span className="flex items-center gap-1">
-                            <ShoppingBag className="w-3 h-3" />
-                            Sell
-                          </span>
-                        )}
-                        {listing.listingType === 'SWAP' && (
-                          <span className="flex items-center gap-1">
-                            <RefreshCw className="w-3 h-3" />
-                            Swap
-                          </span>
-                        )}
-                        {listing.listingType === 'BOTH' && (
-                          <span className="flex items-center gap-1">
-                            <ShoppingBag className="w-3 h-3" />
-                            <RefreshCw className="w-3 h-3" />
-                          </span>
-                        )}
-                      </span>
-                      {/* Wishlist Button */}
-                      {session?.user?.id && session.user.id !== listing.user.id && (
-                        <button
-                          onClick={(e) => toggleWishlist(e, listing.id, listing.user.id)}
-                          disabled={togglingWishlist === listing.id}
-                          className={`p-1.5 rounded-full backdrop-blur-sm transition-colors ${
-                            wishlistedIds.has(listing.id)
-                              ? 'bg-red-500 text-white hover:bg-red-600'
-                              : 'bg-black/50 text-white hover:bg-black/70'
-                          }`}
-                          title={wishlistedIds.has(listing.id) ? 'Remove from wishlist' : 'Add to wishlist'}
-                        >
-                          {togglingWishlist === listing.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Heart className={`w-4 h-4 ${wishlistedIds.has(listing.id) ? 'fill-current' : ''}`} />
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-4 flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1 line-clamp-1 group-hover:text-caribbean-teal transition-colors">
-                      {listing.title}
-                    </h3>
-
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
-                      {listing.description}
-                    </p>
-
-                    {listing.price ? (
-                      <p className="text-lg font-bold text-trini-red mb-2">
-                        ${listing.price.toLocaleString()} TTD
-                      </p>
-                    ) : (
-                      <p className="text-lg font-semibold text-tropical-purple mb-2">
-                        Swap Only
-                      </p>
-                    )}
-
-                    <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        {listing.location}
-                      </span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-3 h-3" />
-                        {listing.views} views
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {results && results.pagination.totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-8">
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-caribbean-teal border-t-transparent"></div>
+              </div>
+            ) : results?.listings.length === 0 ? (
+              <div className="bg-white/10 rounded-2xl p-12 text-center">
+                <Package className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No listings found</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-6">Try adjusting your filters or search terms</p>
                 <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="px-4 py-2 bg-white/10 rounded-lg text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
+                  onClick={clearFilters}
+                  className="px-6 py-3 bg-gradient-to-r from-caribbean-teal to-ocean-blue text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
                 >
-                  Previous
-                </button>
-                <span className="px-4 py-2 text-gray-500 dark:text-gray-400">
-                  Page {page} of {results.pagination.totalPages}
-                </span>
-                <button
-                  onClick={() => setPage((p) => Math.min(results.pagination.totalPages, p + 1))}
-                  disabled={page === results.pagination.totalPages}
-                  className="px-4 py-2 bg-white/10 rounded-lg text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
-                >
-                  Next
+                  Clear Filters
                 </button>
               </div>
+            ) : (
+              <>
+                <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+                  {results?.listings.map((listing) => (
+                    <Link
+                      key={listing.id}
+                      href={`/dashboard/listings/${listing.id}`}
+                      className={`group bg-white dark:bg-white/10 rounded-xl overflow-hidden border border-gray-200 dark:border-transparent hover:border-caribbean-teal/50 shadow-sm hover:shadow-lg transition-all ${viewMode === 'list' ? 'flex' : ''}`}
+                    >
+                      <div className={`relative bg-white border-b border-gray-100 dark:border-white/10 ${viewMode === 'list' ? 'w-48 h-44 flex-shrink-0' : 'h-44'} flex items-center justify-center`}>
+                        {listing.images[0] ? (
+                          <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        ) : (
+                          <Package className="w-10 h-10 text-gray-400" />
+                        )}
+                        {listing.featuredStatus === "ACTIVE" && (
+                          <div className="absolute top-2 left-2 px-2 py-1 bg-gradient-to-r from-trini-gold to-tropical-orange text-white text-xs font-semibold rounded-full flex items-center gap-1">
+                            <Star className="w-3 h-3" fill="currentColor" />
+                            Featured
+                          </div>
+                        )}
+                        <div className="absolute top-2 right-2 flex items-center gap-2">
+                          <span className="px-2 py-1 bg-black/50 backdrop-blur-sm rounded-full text-xs text-white">
+                            {listing.listingType === 'SELL' && <span className="flex items-center gap-1"><ShoppingBag className="w-3 h-3" />Sell</span>}
+                            {listing.listingType === 'SWAP' && <span className="flex items-center gap-1"><RefreshCw className="w-3 h-3" />Swap</span>}
+                            {listing.listingType === 'BOTH' && <span className="flex items-center gap-1"><ShoppingBag className="w-3 h-3" /><RefreshCw className="w-3 h-3" /></span>}
+                          </span>
+                          {session?.user?.id && session.user.id !== listing.user.id && (
+                            <button
+                              onClick={(e) => toggleWishlist(e, listing.id, listing.user.id)}
+                              disabled={togglingWishlist === listing.id}
+                              className={`p-1.5 rounded-full backdrop-blur-sm transition-colors ${wishlistedIds.has(listing.id) ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-black/50 text-white hover:bg-black/70'}`}
+                            >
+                              {togglingWishlist === listing.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Heart className={`w-4 h-4 ${wishlistedIds.has(listing.id) ? 'fill-current' : ''}`} />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-4 flex-1">
+                        <h3 className="font-semibold text-gray-900 dark:text-white mb-1 line-clamp-1 group-hover:text-caribbean-teal transition-colors">{listing.title}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">{listing.description}</p>
+                        {listing.price ? (
+                          <p className="text-lg font-bold text-trini-red mb-2">${listing.price.toLocaleString()} TTD</p>
+                        ) : (
+                          <p className="text-lg font-semibold text-tropical-purple mb-2">Swap Only</p>
+                        )}
+                        <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                          <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{listing.location}</span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{listing.views} views</span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+
+                {results && results.pagination.totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-8">
+                    <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 bg-white/10 rounded-lg text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors">Previous</button>
+                    <span className="px-4 py-2 text-gray-500 dark:text-gray-400">Page {page} of {results.pagination.totalPages}</span>
+                    <button onClick={() => setPage((p) => Math.min(results.pagination.totalPages, p + 1))} disabled={page === results.pagination.totalPages} className="px-4 py-2 bg-white/10 rounded-lg text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors">Next</button>
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
 
-            {/* Ad Banner - Browse Middle (Advertise with Freezone) */}
-            <div className="mt-8">
-              <AdBanner position="middle" type="horizontal" />
-            </div>
-
-            {/* Banner Ad - Browse Mid */}
-            <div className="mt-6">
-              <BannerAd placement="browse_mid" />
-            </div>
+            <div className="mt-8"><AdBanner position="middle" type="horizontal" /></div>
+            <div className="mt-6"><BannerAd placement="browse_mid" /></div>
           </div>
 
           {/* Right Sidebar */}
           <div className="w-72 flex-shrink-0 hidden xl:block space-y-6">
-            {/* Ad Banner - Right Sidebar (Advertise with Freezone) */}
             <AdBanner position="right" type="vertical" />
-
-            {/* Banner Ad - Sidebar */}
             <BannerAd placement="browse_sidebar" />
 
-            {/* Featured Listings Panel */}
             {!sectionsLoading && sectionsData?.featured && sectionsData.featured.length > 0 && (
               <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
                 <div className="flex items-center gap-2 mb-4">
@@ -914,17 +807,12 @@ export default function BrowsePage() {
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">Featured</h3>
                 </div>
                 <div className="space-y-2">
-                  {sectionsData.featured.slice(0, 4).map((listing) => (
-                    <CompactListingCard key={listing.id} listing={listing} />
-                  ))}
+                  {sectionsData.featured.slice(0, 4).map((listing) => <CompactListingCard key={listing.id} listing={listing} />)}
                 </div>
-                <Link href="/" className="mt-4 block text-center text-sm text-trini-red hover:text-trini-red/80 font-semibold">
-                  View More →
-                </Link>
+                <Link href="/" className="mt-4 block text-center text-sm text-trini-red hover:text-trini-red/80 font-semibold">View More →</Link>
               </div>
             )}
 
-            {/* Trending Listings Panel */}
             {!sectionsLoading && sectionsData?.trending && sectionsData.trending.length > 0 && (
               <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
                 <div className="flex items-center gap-2 mb-4">
@@ -932,14 +820,11 @@ export default function BrowsePage() {
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">Trending</h3>
                 </div>
                 <div className="space-y-2">
-                  {sectionsData.trending.slice(0, 4).map((listing) => (
-                    <CompactListingCard key={listing.id} listing={listing} />
-                  ))}
+                  {sectionsData.trending.slice(0, 4).map((listing) => <CompactListingCard key={listing.id} listing={listing} />)}
                 </div>
               </div>
             )}
 
-            {/* Swap Matches Panel */}
             {!sectionsLoading && sectionsData?.swapMatches && sectionsData.swapMatches.length > 0 && (
               <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
                 <div className="flex items-center gap-2 mb-4">
@@ -947,17 +832,12 @@ export default function BrowsePage() {
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">Swap Matches</h3>
                 </div>
                 <div className="space-y-2">
-                  {sectionsData.swapMatches.slice(0, 4).map((listing) => (
-                    <CompactListingCard key={listing.id} listing={listing} showSwapButton={true} />
-                  ))}
+                  {sectionsData.swapMatches.slice(0, 4).map((listing) => <CompactListingCard key={listing.id} listing={listing} showSwapButton={true} />)}
                 </div>
-                <Link href="/?section=swaps" className="mt-4 block text-center text-sm text-tropical-purple hover:text-tropical-purple/80 font-semibold">
-                  View All Swaps →
-                </Link>
+                <Link href="/?section=swaps" className="mt-4 block text-center text-sm text-tropical-purple hover:text-tropical-purple/80 font-semibold">View All Swaps →</Link>
               </div>
             )}
 
-            {/* Recent Activity Panel */}
             {!sectionsLoading && sectionsData?.recentActivity && sectionsData.recentActivity.length > 0 && (
               <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
                 <div className="flex items-center gap-2 mb-4">
@@ -967,9 +847,7 @@ export default function BrowsePage() {
                 <div className="space-y-3">
                   {sectionsData.recentActivity.slice(0, 5).map((activity, index) => (
                     <div key={index} className="flex items-start gap-3 pb-3 border-b border-gray-100 dark:border-white/5 last:border-0 last:pb-0">
-                      <div className="w-8 h-8 bg-gray-100 dark:bg-white/10 rounded-full flex items-center justify-center flex-shrink-0">
-                        {getActivityIcon(activity.type)}
-                      </div>
+                      <div className="w-8 h-8 bg-gray-100 dark:bg-white/10 rounded-full flex items-center justify-center flex-shrink-0">{getActivityIcon(activity.type)}</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-gray-700 dark:text-gray-200 line-clamp-2">{activity.message}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{formatTimeAgo(activity.timestamp)}</p>
@@ -980,15 +858,11 @@ export default function BrowsePage() {
               </div>
             )}
 
-            {/* Banner Ad - Sidebar Bottom */}
             <BannerAd placement="browse_sidebar_bottom" />
           </div>
         </div>
 
-        {/* Mobile-only: Right sidebar ad banner collapses to horizontal */}
-        <div className="xl:hidden mt-6">
-          <AdBanner position="right" type="horizontal" />
-        </div>
+        <div className="xl:hidden mt-6"><AdBanner position="right" type="horizontal" /></div>
       </div>
     </div>
   );
