@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import { Providers } from '@/components/providers';
+import { Navbar } from '@/components/shared/navbar';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -13,14 +15,7 @@ export const metadata: Metadata = {
     description: 'Trinidad & Tobago Marketplace for Swapping and Selling',
     url: 'https://freezone-app-alpha.vercel.app',
     siteName: 'Freezone Swap or Sell',
-    images: [
-      {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'Freezone Swap or Sell - Trinidad & Tobago Marketplace',
-      },
-    ],
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Freezone Swap or Sell - Trinidad & Tobago Marketplace' }],
     locale: 'en_TT',
     type: 'website',
   },
@@ -36,14 +31,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <Providers>
+          <Navbar />
+          {children}
+        </Providers>
+      </body>
     </html>
   );
 }
