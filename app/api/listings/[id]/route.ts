@@ -45,6 +45,7 @@ export async function GET(
             verified: true,
             location: true,
             phone: true,
+            whatsapp: true,
           },
         },
         feePayments: {
@@ -97,7 +98,6 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    // Validate input
     const validationResult = updateListingSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
@@ -108,7 +108,6 @@ export async function PATCH(
 
     const data = validationResult.data;
 
-    // Check if listing exists
     const listing = await prisma.listing.findUnique({
       where: { id },
     });
@@ -120,7 +119,6 @@ export async function PATCH(
       );
     }
 
-    // Check ownership (unless admin)
     if (listing.userId !== session.user.id && session.user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden' },
@@ -128,7 +126,6 @@ export async function PATCH(
       );
     }
 
-    // Update listing
     const updatedListing = await prisma.listing.update({
       where: { id },
       data,
@@ -177,7 +174,6 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    // Validate input
     const validationResult = updateListingSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
@@ -188,7 +184,6 @@ export async function PUT(
 
     const data = validationResult.data;
 
-    // Check if listing exists
     const listing = await prisma.listing.findUnique({
       where: { id },
     });
@@ -200,7 +195,6 @@ export async function PUT(
       );
     }
 
-    // Strict ownership check - only the owner can edit via PUT
     if (listing.userId !== session.user.id) {
       return NextResponse.json(
         { error: 'Unauthorized - only the listing owner can edit this listing' },
@@ -208,10 +202,8 @@ export async function PUT(
       );
     }
 
-    // Remove status from the update data - owners cannot change status via edit
     const { status: _status, ...safeData } = data;
 
-    // Update listing - preserve createdAt, expiresAt, payment info, etc.
     const updatedListing = await prisma.listing.update({
       where: { id },
       data: safeData,
@@ -259,7 +251,6 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Check if listing exists
     const listing = await prisma.listing.findUnique({
       where: { id },
       include: {
@@ -283,7 +274,6 @@ export async function DELETE(
       );
     }
 
-    // Check ownership (unless admin)
     if (listing.userId !== session.user.id && session.user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden' },
@@ -291,7 +281,6 @@ export async function DELETE(
       );
     }
 
-    // Check if listing is in active swaps
     if (listing.offeredInSwaps.length > 0 || listing.requestedInSwaps.length > 0) {
       return NextResponse.json(
         { error: 'Cannot delete listing with active swap offers' },
@@ -299,7 +288,6 @@ export async function DELETE(
       );
     }
 
-    // Soft delete by setting status to REMOVED
     await prisma.listing.update({
       where: { id },
       data: { status: 'REMOVED' },
