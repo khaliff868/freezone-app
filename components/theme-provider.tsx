@@ -12,7 +12,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark');
+  const [theme, setThemeState] = useState<Theme>('light'); // ← default light
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -22,8 +22,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setThemeState(stored);
       document.documentElement.classList.toggle('dark', stored === 'dark');
     } else {
-      // Default to dark mode
-      document.documentElement.classList.add('dark');
+      // Default to light mode
+      document.documentElement.classList.remove('dark'); // ← remove dark
     }
   }, []);
 
@@ -37,9 +37,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Prevent flash by not rendering until mounted
+  // Prevent flash — render light by default before mount
   if (!mounted) {
-    return <div className="dark">{children}</div>;
+    return <>{children}</>; // ← no dark class wrapper
   }
 
   return (
