@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -108,7 +108,7 @@ const SORT_OPTIONS = [
   { value: 'popular', label: 'Most Popular' },
 ];
 
-export default function BrowsePage() {
+function BrowsePageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { data: session } = useSession() || {};
@@ -120,11 +120,9 @@ export default function BrowsePage() {
   const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set());
   const [togglingWishlist, setTogglingWishlist] = useState<string | null>(null);
 
-  // Homepage sections data for browse page
   const [sectionsData, setSectionsData] = useState<HomepageSectionsData | null>(null);
   const [sectionsLoading, setSectionsLoading] = useState(true);
 
-  // Filter state
   const [query, setQuery] = useState(searchParams.get('q') || '');
   const [category, setCategory] = useState(searchParams.get('category') || '');
   const [listingType, setListingType] = useState(searchParams.get('type') || '');
@@ -135,7 +133,6 @@ export default function BrowsePage() {
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
   const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
 
-  // Live search state
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -143,7 +140,6 @@ export default function BrowsePage() {
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Fetch homepage sections data
   useEffect(() => {
     const fetchSections = async () => {
       try {
@@ -168,20 +164,16 @@ export default function BrowsePage() {
     fetchSections();
   }, []);
 
-  // Live search - fetch suggestions with debounce
   const fetchSuggestions = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
     }
-
-    // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     abortControllerRef.current = new AbortController();
-
     setLoadingSuggestions(true);
     try {
       const res = await fetch(
@@ -208,33 +200,21 @@ export default function BrowsePage() {
     }
   }, []);
 
-  // Handle query change with debounce
   const handleQueryChange = (value: string) => {
     setQuery(value);
-    
-    // Clear previous debounce
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    // Set new debounce
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchSuggestions(value);
     }, 300);
   };
 
-  // Handle suggestion click
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
     setQuery(suggestion.title);
     setShowSuggestions(false);
     setPage(1);
-    // Trigger search with the selected suggestion
-    setTimeout(() => {
-      fetchResults();
-    }, 0);
+    setTimeout(() => { fetchResults(); }, 0);
   };
 
-  // Close suggestions on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
@@ -245,26 +225,18 @@ export default function BrowsePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close suggestions on ESC key
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setShowSuggestions(false);
-      }
+      if (event.key === 'Escape') setShowSuggestions(false);
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Cleanup debounce on unmount
   useEffect(() => {
     return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, []);
 
@@ -281,7 +253,6 @@ export default function BrowsePage() {
       if (maxPrice) params.set('maxPrice', maxPrice);
       params.set('sort', sortBy);
       params.set('page', page.toString());
-
       const res = await fetch(`/api/listings/search?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
@@ -298,7 +269,6 @@ export default function BrowsePage() {
     fetchResults();
   }, [fetchResults]);
 
-  // Fetch wishlist status
   useEffect(() => {
     const fetchWishlist = async () => {
       if (!session?.user?.id) return;
@@ -319,26 +289,14 @@ export default function BrowsePage() {
   const toggleWishlist = async (e: React.MouseEvent, listingId: string, sellerId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (!session?.user?.id) {
-      toast.error('Please login to save items');
-      return;
-    }
-    if (session.user.id === sellerId) {
-      toast.error("You can't wishlist your own listing");
-      return;
-    }
-    
+    if (!session?.user?.id) { toast.error('Please login to save items'); return; }
+    if (session.user.id === sellerId) { toast.error("You can't wishlist your own listing"); return; }
     setTogglingWishlist(listingId);
     try {
       if (wishlistedIds.has(listingId)) {
         const res = await fetch(`/api/wishlist?listingId=${listingId}`, { method: 'DELETE' });
         if (res.ok) {
-          setWishlistedIds(prev => {
-            const next = new Set(prev);
-            next.delete(listingId);
-            return next;
-          });
+          setWishlistedIds(prev => { const next = new Set(prev); next.delete(listingId); return next; });
           toast.success('Removed from wishlist');
         }
       } else {
@@ -368,15 +326,8 @@ export default function BrowsePage() {
   };
 
   const clearFilters = () => {
-    setQuery('');
-    setCategory('');
-    setListingType('');
-    setCondition('');
-    setLocation('');
-    setMinPrice('');
-    setMaxPrice('');
-    setSortBy('newest');
-    setPage(1);
+    setQuery(''); setCategory(''); setListingType(''); setCondition('');
+    setLocation(''); setMinPrice(''); setMaxPrice(''); setSortBy('newest'); setPage(1);
   };
 
   const getCategoryStyle = (cat: string) => {
@@ -389,14 +340,7 @@ export default function BrowsePage() {
     return found ? found.emoji : '📦';
   };
 
-  const activeFiltersCount = [
-    category,
-    listingType,
-    condition,
-    location,
-    minPrice,
-    maxPrice,
-  ].filter(Boolean).length;
+  const activeFiltersCount = [category, listingType, condition, location, minPrice, maxPrice].filter(Boolean).length;
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -419,7 +363,6 @@ export default function BrowsePage() {
     return `${days}d ago`;
   };
 
-  // Compact Listing Card for sidebar sections
   const CompactListingCard = ({ listing, showSwapButton = false }: { listing: Listing; showSwapButton?: boolean }) => (
     <Link
       href={`/dashboard/listings/${listing.id}`}
@@ -453,36 +396,26 @@ export default function BrowsePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      {/* Header */}
       <div className="bg-gradient-to-r from-trini-red via-trini-black to-trini-red py-8 px-6">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Browse Listings 🇹🇹
-          </h1>
-          <p className="text-gray-200">
-            Find what you&apos;re looking for in Trinidad & Tobago
-          </p>
+          <h1 className="text-3xl font-bold text-white mb-2">Browse Listings 🇹🇹</h1>
+          <p className="text-gray-200">Find what you&apos;re looking for in Trinidad & Tobago</p>
         </div>
       </div>
 
-      {/* Ad Banner - Browse Top (Advertise with Freezone) */}
       <div className="max-w-7xl mx-auto px-6 pt-6">
         <AdBanner position="top" type="horizontal" />
       </div>
-
-      {/* Banner Ad - Browse Top */}
       <div className="max-w-7xl mx-auto px-6 pt-4">
         <BannerAd placement="browse_top" />
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Mobile-only: Sidebar ad banners collapse to horizontal */}
         <div className="lg:hidden mb-6 space-y-4">
           <AdBanner position="left" type="horizontal" />
         </div>
 
         <div className="flex gap-8">
-          {/* Left Sidebar - Categories */}
           <div className="w-64 flex-shrink-0 hidden lg:block">
             <div className="bg-white dark:bg-white/10 rounded-2xl p-5 sticky top-24 border border-gray-200 dark:border-transparent shadow-lg dark:shadow-none">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
@@ -493,19 +426,13 @@ export default function BrowsePage() {
                 <button
                   onClick={() => { setCategory(''); setPage(1); }}
                   className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 font-medium ${
-                    category === ''
-                      ? 'bg-trini-gold text-black'
-                      : 'text-gray-700 dark:text-gray-100 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'
+                    category === '' ? 'bg-trini-gold text-black' : 'text-gray-700 dark:text-gray-100 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'
                   }`}
                 >
                   <span>📋</span>
                   <span>All Categories</span>
                   {results?.filters?.categories && (
-                    <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${
-                      category === '' 
-                        ? 'bg-black/20 text-black' 
-                        : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'
-                    }`}>
+                    <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${category === '' ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
                       {results.pagination.total}
                     </span>
                   )}
@@ -517,36 +444,25 @@ export default function BrowsePage() {
                       key={cat.name}
                       onClick={() => { setCategory(cat.name); setPage(1); }}
                       className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 font-medium ${
-                        category === cat.name
-                          ? 'bg-trini-gold text-black'
-                          : 'text-gray-700 dark:text-gray-100 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'
+                        category === cat.name ? 'bg-trini-gold text-black' : 'text-gray-700 dark:text-gray-100 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'
                       }`}
                     >
                       <span>{cat.emoji}</span>
                       <span className="truncate">{cat.name}</span>
-                      <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${
-                        category === cat.name 
-                          ? 'bg-black/20 text-black' 
-                          : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'
-                      }`}>
+                      <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${category === cat.name ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
                         {count}
                       </span>
                     </button>
                   );
                 })}
               </div>
-
-            {/* Ad Banner - Left Sidebar (Advertise with Freezone) */}
-            <div className="mt-6">
-              <AdBanner position="left" type="vertical" />
-            </div>
-
+              <div className="mt-6">
+                <AdBanner position="left" type="vertical" />
+              </div>
             </div>
           </div>
 
-          {/* Main Content */}
           <div className="flex-1 min-w-0">
-            {/* Search Bar with Live Search */}
             <div className="mb-6" ref={searchContainerRef}>
               <form onSubmit={handleSearch} className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -564,8 +480,6 @@ export default function BrowsePage() {
                 >
                   Search
                 </button>
-
-                {/* Live Search Suggestions Dropdown */}
                 {showSuggestions && (
                   <div className="absolute bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md w-full mt-1 z-50 overflow-hidden">
                     {loadingSuggestions ? (
@@ -581,9 +495,7 @@ export default function BrowsePage() {
                           onClick={() => handleSuggestionClick(suggestion)}
                           className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
                         >
-                          <div className="text-gray-800 dark:text-white font-medium truncate">
-                            {suggestion.title}
-                          </div>
+                          <div className="text-gray-800 dark:text-white font-medium truncate">{suggestion.title}</div>
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-500 dark:text-gray-400">{suggestion.category}</span>
                             {suggestion.price !== null && (
@@ -593,37 +505,18 @@ export default function BrowsePage() {
                         </button>
                       ))
                     ) : query.trim() ? (
-                      <div className="px-4 py-3 text-gray-500 dark:text-gray-400 text-sm">
-                        No listings found
-                      </div>
+                      <div className="px-4 py-3 text-gray-500 dark:text-gray-400 text-sm">No listings found</div>
                     ) : null}
                   </div>
                 )}
               </form>
             </div>
 
-            {/* Horizontal Filter Bar */}
             <div className="bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-xl p-3 mb-4 shadow-sm">
               <div className="flex flex-wrap items-center gap-3">
-                <input
-                  type="number"
-                  value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
-                  placeholder="Min Price"
-                  className="w-[110px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold"
-                />
-                <input
-                  type="number"
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
-                  placeholder="Max Price"
-                  className="w-[110px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold"
-                />
-                <select
-                  value={condition}
-                  onChange={(e) => setCondition(e.target.value)}
-                  className="min-w-[160px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold"
-                >
+                <input type="number" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="Min Price" className="w-[110px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold" />
+                <input type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Max Price" className="w-[110px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold" />
+                <select value={condition} onChange={(e) => setCondition(e.target.value)} className="min-w-[160px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold">
                   <option value="" className="bg-white dark:bg-gray-800">Any Condition</option>
                   <option value="NEW" className="bg-white dark:bg-gray-800">Brand New</option>
                   <option value="LIKE_NEW" className="bg-white dark:bg-gray-800">Like New</option>
@@ -631,21 +524,13 @@ export default function BrowsePage() {
                   <option value="FAIR" className="bg-white dark:bg-gray-800">Fair</option>
                   <option value="POOR" className="bg-white dark:bg-gray-800">Used</option>
                 </select>
-                <select
-                  value={listingType}
-                  onChange={(e) => setListingType(e.target.value)}
-                  className="min-w-[160px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold"
-                >
+                <select value={listingType} onChange={(e) => setListingType(e.target.value)} className="min-w-[160px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold">
                   <option value="" className="bg-white dark:bg-gray-800">All Types</option>
                   <option value="SELL" className="bg-white dark:bg-gray-800">Sell</option>
                   <option value="SWAP" className="bg-white dark:bg-gray-800">Swap</option>
                   <option value="BOTH" className="bg-white dark:bg-gray-800">Free</option>
                 </select>
-                <select
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="min-w-[160px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold"
-                >
+                <select value={location} onChange={(e) => setLocation(e.target.value)} className="min-w-[160px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold">
                   <option value="" className="bg-white dark:bg-gray-800">Any Location</option>
                   <option value="Port of Spain" className="bg-white dark:bg-gray-800">Port of Spain</option>
                   <option value="San Fernando" className="bg-white dark:bg-gray-800">San Fernando</option>
@@ -658,41 +543,17 @@ export default function BrowsePage() {
                   <option value="Marabella" className="bg-white dark:bg-gray-800">Marabella</option>
                   <option value="Point Fortin" className="bg-white dark:bg-gray-800">Point Fortin</option>
                 </select>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="min-w-[150px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold"
-                >
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="min-w-[150px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold">
                   <option value="newest" className="bg-white dark:bg-gray-800">Newest First</option>
                   <option value="oldest" className="bg-white dark:bg-gray-800">Oldest First</option>
                 </select>
                 <div className="flex bg-gray-100 dark:bg-white/10 rounded-lg p-1">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-md transition-colors ${
-                      viewMode === 'grid' ? 'bg-trini-gold text-trini-black' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                    title="Grid View"
-                  >
-                    <Grid className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-2 rounded-md transition-colors ${
-                      viewMode === 'list' ? 'bg-trini-gold text-trini-black' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                    title="List View"
-                  >
-                    <List className="w-4 h-4" />
-                  </button>
+                  <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-trini-gold text-trini-black' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`} title="Grid View"><Grid className="w-4 h-4" /></button>
+                  <button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-trini-gold text-trini-black' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`} title="List View"><List className="w-4 h-4" /></button>
                 </div>
                 {activeFiltersCount > 0 && (
-                  <button
-                    onClick={clearFilters}
-                    className="ml-auto px-4 py-2 bg-trini-red/10 dark:bg-trini-red/20 text-trini-red rounded-lg text-sm font-medium hover:bg-trini-red/20 dark:hover:bg-trini-red/30 transition-colors flex items-center gap-2"
-                  >
-                    <X className="w-4 h-4" />
-                    Clear All Filters
+                  <button onClick={clearFilters} className="ml-auto px-4 py-2 bg-trini-red/10 dark:bg-trini-red/20 text-trini-red rounded-lg text-sm font-medium hover:bg-trini-red/20 dark:hover:bg-trini-red/30 transition-colors flex items-center gap-2">
+                    <X className="w-4 h-4" />Clear All Filters
                   </button>
                 )}
               </div>
@@ -718,12 +579,7 @@ export default function BrowsePage() {
                 <Package className="w-16 h-16 text-gray-500 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No listings found</h3>
                 <p className="text-gray-500 dark:text-gray-400 mb-6">Try adjusting your filters or search terms</p>
-                <button
-                  onClick={clearFilters}
-                  className="px-6 py-3 bg-gradient-to-r from-caribbean-teal to-ocean-blue text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
-                >
-                  Clear Filters
-                </button>
+                <button onClick={clearFilters} className="px-6 py-3 bg-gradient-to-r from-caribbean-teal to-ocean-blue text-white font-semibold rounded-xl hover:opacity-90 transition-opacity">Clear Filters</button>
               </div>
             ) : (
               <>
@@ -742,8 +598,7 @@ export default function BrowsePage() {
                         )}
                         {listing.featuredStatus === "ACTIVE" && (
                           <div className="absolute top-2 left-2 px-2 py-1 bg-gradient-to-r from-trini-gold to-tropical-orange text-white text-xs font-semibold rounded-full flex items-center gap-1">
-                            <Star className="w-3 h-3" fill="currentColor" />
-                            Featured
+                            <Star className="w-3 h-3" fill="currentColor" />Featured
                           </div>
                         )}
                         <div className="absolute top-2 right-2 flex items-center gap-2">
@@ -780,7 +635,6 @@ export default function BrowsePage() {
                     </Link>
                   ))}
                 </div>
-
                 {results && results.pagination.totalPages > 1 && (
                   <div className="flex items-center justify-center gap-2 mt-8">
                     <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 bg-white/10 rounded-lg text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors">Previous</button>
@@ -795,55 +649,32 @@ export default function BrowsePage() {
             <div className="mt-6"><BannerAd placement="browse_mid" /></div>
           </div>
 
-          {/* Right Sidebar */}
           <div className="w-72 flex-shrink-0 hidden xl:block space-y-6">
             <AdBanner position="right" type="vertical" />
             <BannerAd placement="browse_sidebar" />
-
             {!sectionsLoading && sectionsData?.featured && sectionsData.featured.length > 0 && (
               <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
-                <div className="flex items-center gap-2 mb-4">
-                  <Star className="w-5 h-5 text-trini-gold" />
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Featured</h3>
-                </div>
-                <div className="space-y-2">
-                  {sectionsData.featured.slice(0, 4).map((listing) => <CompactListingCard key={listing.id} listing={listing} />)}
-                </div>
+                <div className="flex items-center gap-2 mb-4"><Star className="w-5 h-5 text-trini-gold" /><h3 className="text-lg font-bold text-gray-900 dark:text-white">Featured</h3></div>
+                <div className="space-y-2">{sectionsData.featured.slice(0, 4).map((listing) => <CompactListingCard key={listing.id} listing={listing} />)}</div>
                 <Link href="/" className="mt-4 block text-center text-sm text-trini-red hover:text-trini-red/80 font-semibold">View More →</Link>
               </div>
             )}
-
             {!sectionsLoading && sectionsData?.trending && sectionsData.trending.length > 0 && (
               <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
-                <div className="flex items-center gap-2 mb-4">
-                  <Zap className="w-5 h-5 text-trini-red" />
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Trending</h3>
-                </div>
-                <div className="space-y-2">
-                  {sectionsData.trending.slice(0, 4).map((listing) => <CompactListingCard key={listing.id} listing={listing} />)}
-                </div>
+                <div className="flex items-center gap-2 mb-4"><Zap className="w-5 h-5 text-trini-red" /><h3 className="text-lg font-bold text-gray-900 dark:text-white">Trending</h3></div>
+                <div className="space-y-2">{sectionsData.trending.slice(0, 4).map((listing) => <CompactListingCard key={listing.id} listing={listing} />)}</div>
               </div>
             )}
-
             {!sectionsLoading && sectionsData?.swapMatches && sectionsData.swapMatches.length > 0 && (
               <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
-                <div className="flex items-center gap-2 mb-4">
-                  <RefreshCw className="w-5 h-5 text-tropical-purple" />
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Swap Matches</h3>
-                </div>
-                <div className="space-y-2">
-                  {sectionsData.swapMatches.slice(0, 4).map((listing) => <CompactListingCard key={listing.id} listing={listing} showSwapButton={true} />)}
-                </div>
+                <div className="flex items-center gap-2 mb-4"><RefreshCw className="w-5 h-5 text-tropical-purple" /><h3 className="text-lg font-bold text-gray-900 dark:text-white">Swap Matches</h3></div>
+                <div className="space-y-2">{sectionsData.swapMatches.slice(0, 4).map((listing) => <CompactListingCard key={listing.id} listing={listing} showSwapButton={true} />)}</div>
                 <Link href="/?section=swaps" className="mt-4 block text-center text-sm text-tropical-purple hover:text-tropical-purple/80 font-semibold">View All Swaps →</Link>
               </div>
             )}
-
             {!sectionsLoading && sectionsData?.recentActivity && sectionsData.recentActivity.length > 0 && (
               <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
-                <div className="flex items-center gap-2 mb-4">
-                  <Activity className="w-5 h-5 text-caribbean-teal" />
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Recent Activity</h3>
-                </div>
+                <div className="flex items-center gap-2 mb-4"><Activity className="w-5 h-5 text-caribbean-teal" /><h3 className="text-lg font-bold text-gray-900 dark:text-white">Recent Activity</h3></div>
                 <div className="space-y-3">
                   {sectionsData.recentActivity.slice(0, 5).map((activity, index) => (
                     <div key={index} className="flex items-start gap-3 pb-3 border-b border-gray-100 dark:border-white/5 last:border-0 last:pb-0">
@@ -857,7 +688,6 @@ export default function BrowsePage() {
                 </div>
               </div>
             )}
-
             <BannerAd placement="browse_sidebar_bottom" />
           </div>
         </div>
@@ -865,5 +695,17 @@ export default function BrowsePage() {
         <div className="xl:hidden mt-6"><AdBanner position="right" type="horizontal" /></div>
       </div>
     </div>
+  );
+}
+
+export default function BrowsePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-4 border-caribbean-teal border-t-transparent"></div>
+      </div>
+    }>
+      <BrowsePageInner />
+    </Suspense>
   );
 }
