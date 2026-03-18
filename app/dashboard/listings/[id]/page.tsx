@@ -30,10 +30,12 @@ type Listing = {
     id: string;
     name: string;
     email: string;
+    phone: string | null;
+    whatsapp: string | null;
     tier: string;
     verified: boolean;
   };
-};;
+};
 
 type UserListing = {
   id: string;
@@ -91,44 +93,35 @@ export default function ListingDetailPage() {
 
   const listingId = params?.id as string;
 
-  // Calculate time remaining until payment expires (72 hours from creation)
   const calculateTimeRemaining = useCallback(() => {
     if (!listing || listing.status !== 'PENDING_PAYMENT') {
       return { expired: false, timeString: '' };
     }
-    
     const createdAt = new Date(listing.createdAt).getTime();
-    const expiresAt = createdAt + (72 * 60 * 60 * 1000); // 72 hours in milliseconds
+    const expiresAt = createdAt + (72 * 60 * 60 * 1000);
     const now = Date.now();
     const remaining = expiresAt - now;
-    
     if (remaining <= 0) {
       return { expired: true, timeString: '' };
     }
-    
     const hours = Math.floor(remaining / (1000 * 60 * 60));
     const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-    
     return { expired: false, timeString: `${hours}h ${minutes}m` };
   }, [listing]);
 
-  // Update countdown every minute
   useEffect(() => {
     if (!listing || listing.status !== 'PENDING_PAYMENT') {
       setPaymentExpired(false);
       setTimeRemaining('');
       return;
     }
-    
     const updateTimer = () => {
       const { expired, timeString } = calculateTimeRemaining();
       setPaymentExpired(expired);
       setTimeRemaining(timeString);
     };
-    
-    updateTimer(); // Initial calculation
-    const interval = setInterval(updateTimer, 60000); // Update every 60 seconds
-    
+    updateTimer();
+    const interval = setInterval(updateTimer, 60000);
     return () => clearInterval(interval);
   }, [listing, calculateTimeRemaining]);
 
@@ -138,7 +131,6 @@ export default function ListingDetailPage() {
     }
   }, [listingId]);
 
-  // Handle payment success redirect (for PayPal)
   useEffect(() => {
     const payment = searchParams.get('payment');
     if (payment === 'success') {
@@ -154,7 +146,6 @@ export default function ListingDetailPage() {
       setLoading(true);
       const data = await apiClient<{ listing: Listing }>(`/api/listings/${listingId}`);
       setListing(data.listing);
-      // Check wishlist status
       if (session?.user?.id) {
         checkWishlistStatus();
       }
@@ -216,7 +207,6 @@ export default function ListingDetailPage() {
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this listing?')) return;
-
     try {
       await apiClient(`/api/listings/${listingId}`, { method: 'DELETE' });
       toast.success('Listing deleted');
@@ -240,16 +230,13 @@ export default function ListingDetailPage() {
   const handleSelectPaymentMethod = async (method: PaymentMethod) => {
     setSelectedPaymentMethod(method);
     setProcessingPayment(true);
-    
     try {
       const res = await fetch('/api/payments/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ listingId, method }),
       });
-      
       const data = await res.json();
-      
       if (res.ok) {
         setPaymentInfo(data);
         setPaymentStep('details');
@@ -265,7 +252,6 @@ export default function ListingDetailPage() {
 
   const handlePayPalSuccess = async (orderId: string) => {
     if (!paymentInfo) return;
-    
     setProcessingPayment(true);
     try {
       const res = await fetch('/api/payments/paypal/capture', {
@@ -277,9 +263,7 @@ export default function ListingDetailPage() {
           listingId,
         }),
       });
-      
       const data = await res.json();
-      
       if (data.success) {
         toast.success('Payment successful! Your listing is now active. 🎉');
         setShowPaymentModal(false);
@@ -301,16 +285,8 @@ export default function ListingDetailPage() {
 
   const handleUploadProof = async (file: File) => {
     if (!paymentInfo) return;
-    
     setUploadingProof(true);
     try {
-      // Get presigned URL for upload
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('fileName', file.name);
-      formData.append('contentType', file.type);
-      formData.append('isPublic', 'false');
-      
       const presignedRes = await fetch('/api/upload/presigned', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -320,25 +296,14 @@ export default function ListingDetailPage() {
           isPublic: false,
         }),
       });
-      
-      if (!presignedRes.ok) {
-        throw new Error('Failed to get upload URL');
-      }
-      
+      if (!presignedRes.ok) throw new Error('Failed to get upload URL');
       const { uploadUrl, cloud_storage_path } = await presignedRes.json();
-      
-      // Upload file to S3
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
         headers: { 'Content-Type': file.type },
         body: file,
       });
-      
-      if (!uploadRes.ok) {
-        throw new Error('Failed to upload file');
-      }
-      
-      // Save proof to payment record
+      if (!uploadRes.ok) throw new Error('Failed to upload file');
       const proofRes = await fetch('/api/payments/upload-proof', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -347,7 +312,6 @@ export default function ListingDetailPage() {
           proofUrl: cloud_storage_path,
         }),
       });
-      
       if (proofRes.ok) {
         toast.success('Payment proof uploaded! We will verify your payment within 24-48 hours.');
         setShowPaymentModal(false);
@@ -378,7 +342,6 @@ export default function ListingDetailPage() {
       toast.error('Please enter a message');
       return;
     }
-
     setSendingMessage(true);
     try {
       const res = await fetch('/api/messages', {
@@ -390,7 +353,6 @@ export default function ListingDetailPage() {
           initialMessage: message.trim(),
         }),
       });
-
       if (res.ok) {
         const conv = await res.json();
         toast.success('Message sent!');
@@ -412,7 +374,6 @@ export default function ListingDetailPage() {
       router.push('/auth/login');
       return;
     }
-
     try {
       const res = await fetch('/api/listings?type=swap&status=ACTIVE');
       if (res.ok) {
@@ -433,7 +394,6 @@ export default function ListingDetailPage() {
       toast.error('Please select a listing to offer');
       return;
     }
-
     setSendingSwap(true);
     try {
       const res = await fetch('/api/swaps', {
@@ -445,7 +405,6 @@ export default function ListingDetailPage() {
           message: swapMessage.trim() || null,
         }),
       });
-
       if (res.ok) {
         toast.success('Swap offer sent! 🔄');
         setShowSwapModal(false);
@@ -588,7 +547,6 @@ export default function ListingDetailPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-2 text-gray-600 hover:text-trini-red transition mb-6"
@@ -612,7 +570,6 @@ export default function ListingDetailPage() {
                   </div>
                 </div>
               )}
-              {/* Badges */}
               <div className="absolute top-6 left-6 flex gap-2">
                 {listing.featuredStatus === "ACTIVE" && (
                   <span className="px-3 py-1.5 bg-trini-gold text-trini-black text-sm font-bold rounded-full flex items-center gap-1.5 shadow-md">
@@ -630,9 +587,7 @@ export default function ListingDetailPage() {
                     onClick={toggleWishlist}
                     disabled={togglingWishlist}
                     className={`p-2 rounded-full shadow-md transition-colors ${
-                      isWishlisted
-                        ? 'bg-red-500 text-white hover:bg-red-600'
-                        : 'bg-white text-gray-600 hover:bg-gray-100'
+                      isWishlisted ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-600 hover:bg-gray-100'
                     }`}
                     title={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
                   >
@@ -655,7 +610,6 @@ export default function ListingDetailPage() {
                 </span>
               </div>
               <p className="text-gray-600 text-lg leading-relaxed">{listing.description}</p>
-
               {listing.swapTerms && (
                 <div className="mt-6 p-4 bg-tropical-purple/10 rounded-xl border border-tropical-purple/20">
                   <h3 className="font-semibold text-tropical-purple flex items-center gap-2 mb-2">
@@ -739,6 +693,22 @@ export default function ListingDetailPage() {
                   <p className="text-sm text-gray-500">Member</p>
                 </div>
               </div>
+              {!isOwner && (
+                <div className="border-t border-gray-100 pt-4 space-y-2 text-sm">
+                  <div className="flex gap-2">
+                    <span className="text-gray-500 w-24 flex-shrink-0">Email:</span>
+                    <span className="text-gray-800 break-all">{listing.user.email}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="text-gray-500 w-24 flex-shrink-0">Phone:</span>
+                    <span className="text-gray-800">{listing.user.phone || 'Not provided'}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="text-gray-500 w-24 flex-shrink-0">WhatsApp:</span>
+                    <span className="text-gray-800">{listing.user.whatsapp || 'Not provided'}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Actions */}
@@ -746,7 +716,6 @@ export default function ListingDetailPage() {
               <div className="bg-white rounded-2xl shadow-lg p-6 space-y-3">
                 <h3 className="font-bold text-gray-900 mb-4">Actions</h3>
 
-                {/* Status Messages */}
                 {listing.status === 'PENDING_APPROVAL' && (
                   <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-800">
                     <AlertCircle className="w-4 h-4 inline mr-2" />
@@ -759,7 +728,7 @@ export default function ListingDetailPage() {
                     <AlertCircle className="w-4 h-4 inline mr-2" />
                     Payment of 100 TTD required to publish this listing.
                     {!paymentExpired && timeRemaining && (
-                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+                      <p className="text-sm text-gray-600 mt-2">
                         Payment request expires in: {timeRemaining}
                       </p>
                     )}
@@ -778,14 +747,13 @@ export default function ListingDetailPage() {
                   </div>
                 )}
 
-                {/* Pay for Pending Payment Listings */}
                 {listing.status === 'PENDING_PAYMENT' && (
                   <button
                     onClick={handlePayFee}
                     disabled={paymentExpired}
                     className={`w-full flex items-center justify-center gap-2 px-4 py-3 font-semibold rounded-xl transition-transform ${
-                      paymentExpired 
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                      paymentExpired
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-gradient-to-r from-caribbean-green to-tropical-lime text-white hover:scale-105'
                     }`}
                   >
@@ -794,7 +762,6 @@ export default function ListingDetailPage() {
                   </button>
                 )}
 
-                {/* Renewal Buttons */}
                 {(listing.status === 'ACTIVE' || listing.status === 'EXPIRED') && listing.category === 'Free Items' && (
                   <div>
                     <button
@@ -841,7 +808,6 @@ export default function ListingDetailPage() {
                   </div>
                 )}
 
-                {/* Legacy: Pay Posting Fee for DRAFT/PENDING_FEE */}
                 {(listing.status === 'DRAFT' || listing.status === 'PENDING_FEE') && (listing.listingType === 'SELL' || listing.listingType === 'BOTH') && (
                   <button
                     onClick={handlePayFee}
@@ -873,7 +839,7 @@ export default function ListingDetailPage() {
             {/* Contact Seller (if not owner) */}
             {!isOwner && listing.status === 'ACTIVE' && (
               <div className="bg-white rounded-2xl shadow-lg p-6 space-y-3">
-                <button 
+                <button
                   onClick={handleContactSeller}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-ocean-blue text-white font-semibold rounded-xl hover:scale-105 transition-transform"
                 >
@@ -881,7 +847,7 @@ export default function ListingDetailPage() {
                   Contact Seller
                 </button>
                 {(listing.listingType === 'SWAP' || listing.listingType === 'BOTH') && (
-                  <button 
+                  <button
                     onClick={handleProposeSwap}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-xl hover:scale-105 transition-transform"
                   >
@@ -905,27 +871,16 @@ export default function ListingDetailPage() {
                 {paymentStep === 'details' && 'Payment Details'}
                 {paymentStep === 'upload' && 'Upload Payment Proof'}
               </h3>
-              <button
-                onClick={() => setShowPaymentModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition"
-              >
+              <button onClick={() => setShowPaymentModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
 
             {paymentStep === 'select' && (
               <>
-                <p className="text-gray-600 mb-6">
-                  Select your preferred payment method to activate your listing.
-                </p>
-
+                <p className="text-gray-600 mb-6">Select your preferred payment method to activate your listing.</p>
                 <div className="space-y-3">
-                  {/* PayPal Option */}
-                  <button
-                    onClick={() => handleSelectPaymentMethod('PAYPAL')}
-                    disabled={processingPayment}
-                    className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition disabled:opacity-50"
-                  >
+                  <button onClick={() => handleSelectPaymentMethod('PAYPAL')} disabled={processingPayment} className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition disabled:opacity-50">
                     <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
                       <span className="text-white font-bold text-lg">PP</span>
                     </div>
@@ -935,13 +890,7 @@ export default function ListingDetailPage() {
                     </div>
                     <ExternalLink className="w-5 h-5 text-gray-400 ml-auto" />
                   </button>
-
-                  {/* Online Bank Transfer */}
-                  <button
-                    onClick={() => handleSelectPaymentMethod('ONLINE_BANK')}
-                    disabled={processingPayment}
-                    className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-xl hover:border-caribbean-teal hover:bg-caribbean-teal/10 transition disabled:opacity-50"
-                  >
+                  <button onClick={() => handleSelectPaymentMethod('ONLINE_BANK')} disabled={processingPayment} className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-xl hover:border-caribbean-teal hover:bg-caribbean-teal/10 transition disabled:opacity-50">
                     <div className="w-12 h-12 bg-caribbean-teal rounded-xl flex items-center justify-center">
                       <Building className="w-6 h-6 text-white" />
                     </div>
@@ -950,13 +899,7 @@ export default function ListingDetailPage() {
                       <p className="text-sm text-gray-500">Transfer via internet banking</p>
                     </div>
                   </button>
-
-                  {/* Bank Deposit */}
-                  <button
-                    onClick={() => handleSelectPaymentMethod('BANK_DEPOSIT')}
-                    disabled={processingPayment}
-                    className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-xl hover:border-trini-gold hover:bg-trini-gold/10 transition disabled:opacity-50"
-                  >
+                  <button onClick={() => handleSelectPaymentMethod('BANK_DEPOSIT')} disabled={processingPayment} className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-xl hover:border-trini-gold hover:bg-trini-gold/10 transition disabled:opacity-50">
                     <div className="w-12 h-12 bg-trini-gold rounded-xl flex items-center justify-center">
                       <Landmark className="w-6 h-6 text-trini-black" />
                     </div>
@@ -966,7 +909,6 @@ export default function ListingDetailPage() {
                     </div>
                   </button>
                 </div>
-
                 {processingPayment && (
                   <div className="flex items-center justify-center gap-2 mt-4 text-gray-600">
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -978,26 +920,18 @@ export default function ListingDetailPage() {
 
             {paymentStep === 'details' && paymentInfo && (
               <>
-                {/* Payment Amount */}
                 <div className="bg-gradient-to-r from-caribbean-green to-tropical-lime rounded-xl p-4 mb-6 text-white">
                   <p className="text-white/80 text-sm">Amount Due</p>
                   <p className="text-3xl font-bold">${paymentInfo.amount} {paymentInfo.currency}</p>
-                  {paymentInfo.usdAmount && (
-                    <p className="text-white/80 text-sm">≈ ${paymentInfo.usdAmount} USD</p>
-                  )}
+                  {paymentInfo.usdAmount && <p className="text-white/80 text-sm">≈ ${paymentInfo.usdAmount} USD</p>}
                 </div>
-
-                {/* Reference */}
                 <div className="bg-gray-50 rounded-xl p-4 mb-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-500">Payment Reference</p>
                       <p className="font-mono font-bold text-lg text-gray-900">{paymentInfo.reference}</p>
                     </div>
-                    <button
-                      onClick={() => copyToClipboard(paymentInfo.reference, 'Reference')}
-                      className="p-2 hover:bg-gray-200 rounded-lg transition"
-                    >
+                    <button onClick={() => copyToClipboard(paymentInfo.reference, 'Reference')} className="p-2 hover:bg-gray-200 rounded-lg transition">
                       <Copy className="w-5 h-5 text-gray-600" />
                     </button>
                   </div>
@@ -1005,12 +939,9 @@ export default function ListingDetailPage() {
 
                 {paymentInfo.method === 'PAYPAL' ? (
                   <>
-                    <p className="text-gray-600 mb-4">
-                      Click the button below to complete payment via PayPal.
-                    </p>
+                    <p className="text-gray-600 mb-4">Click the button below to complete payment via PayPal.</p>
                     <div id="paypal-button-container" className="mb-4">
-                      {/* PayPal button would be rendered here by PayPal SDK */}
-                      <a
+                      
                         href={`https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=triniswap@example.com&amount=${paymentInfo.usdAmount}&currency_code=USD&item_name=${encodeURIComponent('Listing Fee: ' + (listing?.title || ''))}&custom=${paymentInfo.paymentId}`}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -1020,97 +951,50 @@ export default function ListingDetailPage() {
                         <ExternalLink className="w-5 h-5" />
                       </a>
                     </div>
-                    <p className="text-sm text-gray-500 text-center">
-                      After payment, your listing will be activated automatically.
-                    </p>
+                    <p className="text-sm text-gray-500 text-center">After payment, your listing will be activated automatically.</p>
                   </>
                 ) : (
                   <>
-                    {/* Bank Details */}
                     {paymentInfo.bankDetails && (
                       <div className="space-y-3 mb-4">
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="text-sm text-gray-500">Bank Name</p>
-                            <p className="font-semibold text-gray-900">{paymentInfo.bankDetails.bankName}</p>
+                        {[
+                          { label: 'Bank Name', value: paymentInfo.bankDetails.bankName },
+                          { label: 'Account Name', value: paymentInfo.bankDetails.accountName },
+                          { label: 'Account Number', value: paymentInfo.bankDetails.accountNumber },
+                        ].map(({ label, value }) => (
+                          <div key={label} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                              <p className="text-sm text-gray-500">{label}</p>
+                              <p className="font-semibold text-gray-900">{value}</p>
+                            </div>
+                            <button onClick={() => copyToClipboard(value, label)} className="p-2 hover:bg-gray-200 rounded-lg transition">
+                              <Copy className="w-4 h-4 text-gray-600" />
+                            </button>
                           </div>
-                          <button
-                            onClick={() => copyToClipboard(paymentInfo.bankDetails!.bankName, 'Bank Name')}
-                            className="p-2 hover:bg-gray-200 rounded-lg transition"
-                          >
-                            <Copy className="w-4 h-4 text-gray-600" />
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="text-sm text-gray-500">Account Name</p>
-                            <p className="font-semibold text-gray-900">{paymentInfo.bankDetails.accountName}</p>
-                          </div>
-                          <button
-                            onClick={() => copyToClipboard(paymentInfo.bankDetails!.accountName, 'Account Name')}
-                            className="p-2 hover:bg-gray-200 rounded-lg transition"
-                          >
-                            <Copy className="w-4 h-4 text-gray-600" />
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="text-sm text-gray-500">Account Number</p>
-                            <p className="font-semibold text-gray-900">{paymentInfo.bankDetails.accountNumber}</p>
-                          </div>
-                          <button
-                            onClick={() => copyToClipboard(paymentInfo.bankDetails!.accountNumber, 'Account Number')}
-                            className="p-2 hover:bg-gray-200 rounded-lg transition"
-                          >
-                            <Copy className="w-4 h-4 text-gray-600" />
-                          </button>
-                        </div>
+                        ))}
                       </div>
                     )}
-
-                    {/* Instructions */}
                     <div className="bg-trini-gold/10 border border-trini-gold/20 rounded-xl p-4 mb-4">
                       <p className="text-sm text-gray-700">{paymentInfo.instructions}</p>
                     </div>
-
-                    {/* Upload Proof Button */}
                     <div className="space-y-3">
-                      <p className="text-sm text-gray-600 text-center">
-                        After making the transfer/deposit, upload your receipt or proof of payment.
-                      </p>
+                      <p className="text-sm text-gray-600 text-center">After making the transfer/deposit, upload your receipt or proof of payment.</p>
                       <label className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-caribbean-ocean text-white font-semibold rounded-xl hover:opacity-90 transition cursor-pointer">
                         <input
                           type="file"
                           accept="image/*,.pdf"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleUploadProof(file);
-                          }}
+                          onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadProof(file); }}
                           className="hidden"
                           disabled={uploadingProof}
                         />
-                        {uploadingProof ? (
-                          <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-5 h-5" />
-                            Upload Payment Proof
-                          </>
-                        )}
+                        {uploadingProof ? <><Loader2 className="w-5 h-5 animate-spin" />Uploading...</> : <><Upload className="w-5 h-5" />Upload Payment Proof</>}
                       </label>
                     </div>
                   </>
                 )}
 
                 <button
-                  onClick={() => {
-                    setPaymentStep('select');
-                    setPaymentInfo(null);
-                    setSelectedPaymentMethod(null);
-                  }}
+                  onClick={() => { setPaymentStep('select'); setPaymentInfo(null); setSelectedPaymentMethod(null); }}
                   className="w-full mt-4 px-4 py-2 text-gray-600 hover:text-gray-900 transition text-sm"
                 >
                   ← Choose different payment method
@@ -1127,18 +1011,11 @@ export default function ListingDetailPage() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-900">Contact Seller</h3>
-              <button
-                onClick={() => setShowMessageModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition"
-              >
+              <button onClick={() => setShowMessageModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
-            
-            <p className="text-gray-600 mb-4">
-              Send a message to {listing?.user.name} about "{listing?.title}"
-            </p>
-            
+            <p className="text-gray-600 mb-4">Send a message to {listing?.user.name} about "{listing?.title}"</p>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -1146,24 +1023,14 @@ export default function ListingDetailPage() {
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-teal resize-none"
               rows={4}
             />
-            
             <div className="flex gap-3 mt-4">
-              <button
-                onClick={() => setShowMessageModal(false)}
-                className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition"
-              >
-                Cancel
-              </button>
+              <button onClick={() => setShowMessageModal(false)} className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">Cancel</button>
               <button
                 onClick={handleSendMessage}
                 disabled={sendingMessage || !message.trim()}
                 className="flex-1 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-ocean-blue text-white font-semibold rounded-xl hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {sendingMessage ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <MessageSquare className="w-5 h-5" />
-                )}
+                {sendingMessage ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageSquare className="w-5 h-5" />}
                 Send
               </button>
             </div>
@@ -1177,26 +1044,16 @@ export default function ListingDetailPage() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-900">Propose a Swap</h3>
-              <button
-                onClick={() => setShowSwapModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition"
-              >
+              <button onClick={() => setShowSwapModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
-            
-            <p className="text-gray-600 mb-4">
-              Select one of your listings to offer in exchange for "{listing?.title}"
-            </p>
-            
+            <p className="text-gray-600 mb-4">Select one of your listings to offer in exchange for "{listing?.title}"</p>
             {userListings.length === 0 ? (
               <div className="text-center py-8">
                 <ArrowRightLeft className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500 mb-4">You don't have any active swap listings</p>
-                <Link
-                  href="/dashboard/listings/create"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-xl hover:opacity-90 transition"
-                >
+                <Link href="/dashboard/listings/create" className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-xl hover:opacity-90 transition">
                   Create a Listing
                 </Link>
               </div>
@@ -1207,37 +1064,21 @@ export default function ListingDetailPage() {
                     <label
                       key={item.id}
                       className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition ${
-                        selectedListing === item.id
-                          ? 'border-tropical-purple bg-tropical-purple/10'
-                          : 'border-gray-200 hover:border-tropical-purple/50'
+                        selectedListing === item.id ? 'border-tropical-purple bg-tropical-purple/10' : 'border-gray-200 hover:border-tropical-purple/50'
                       }`}
                     >
-                      <input
-                        type="radio"
-                        name="swapListing"
-                        value={item.id}
-                        checked={selectedListing === item.id}
-                        onChange={(e) => setSelectedListing(e.target.value)}
-                        className="sr-only"
-                      />
+                      <input type="radio" name="swapListing" value={item.id} checked={selectedListing === item.id} onChange={(e) => setSelectedListing(e.target.value)} className="sr-only" />
                       <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                        {item.images[0] ? (
-                          <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-2xl">📦</div>
-                        )}
+                        {item.images[0] ? <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">📦</div>}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-gray-900 truncate">{item.title}</p>
                         <p className="text-sm text-gray-500">{item.listingType}</p>
                       </div>
-                      {selectedListing === item.id && (
-                        <Check className="w-6 h-6 text-tropical-purple flex-shrink-0" />
-                      )}
+                      {selectedListing === item.id && <Check className="w-6 h-6 text-tropical-purple flex-shrink-0" />}
                     </label>
                   ))}
                 </div>
-                
                 <textarea
                   value={swapMessage}
                   onChange={(e) => setSwapMessage(e.target.value)}
@@ -1245,24 +1086,14 @@ export default function ListingDetailPage() {
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-tropical-purple resize-none"
                   rows={3}
                 />
-                
                 <div className="flex gap-3 mt-4">
-                  <button
-                    onClick={() => setShowSwapModal(false)}
-                    className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition"
-                  >
-                    Cancel
-                  </button>
+                  <button onClick={() => setShowSwapModal(false)} className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">Cancel</button>
                   <button
                     onClick={handleSubmitSwap}
                     disabled={sendingSwap || !selectedListing}
                     className="flex-1 px-4 py-3 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-xl hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {sendingSwap ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <ArrowRightLeft className="w-5 h-5" />
-                    )}
+                    {sendingSwap ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRightLeft className="w-5 h-5" />}
                     Send Offer
                   </button>
                 </div>
