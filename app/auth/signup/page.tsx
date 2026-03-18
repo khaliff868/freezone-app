@@ -86,7 +86,7 @@ export default function SignupPage() {
                   id="name"
                   type="text"
                   required
-                  className="w-full pl-14 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium"
+                  className="w-full pl-14 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-gray-900 placeholder:text-gray-400"
                   placeholder="John Doe"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -106,7 +106,7 @@ export default function SignupPage() {
                   id="email"
                   type="email"
                   required
-                  className="w-full pl-14 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium"
+                  className="w-full pl-14 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-gray-900 placeholder:text-gray-400"
                   placeholder="you@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -127,7 +127,7 @@ export default function SignupPage() {
                     id="password"
                     type="password"
                     required
-                    className="w-full pl-12 pr-3 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-sm"
+                    className="w-full pl-12 pr-3 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-sm text-gray-900 placeholder:text-gray-400"
                     placeholder="••••••"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -142,7 +142,7 @@ export default function SignupPage() {
                   id="confirmPassword"
                   type="password"
                   required
-                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-sm"
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-sm text-gray-900 placeholder:text-gray-400"
                   placeholder="••••••"
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
@@ -162,7 +162,7 @@ export default function SignupPage() {
                   <input
                     id="phone"
                     type="tel"
-                    className="w-full pl-12 pr-3 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-sm"
+                    className="w-full pl-12 pr-3 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-sm text-gray-900 placeholder:text-gray-400"
                     placeholder="868-xxx-xxxx"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -180,7 +180,7 @@ export default function SignupPage() {
                   <input
                     id="location"
                     type="text"
-                    className="w-full pl-12 pr-3 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-sm"
+                    className="w-full pl-12 pr-3 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-sm text-gray-900 placeholder:text-gray-400"
                     placeholder="Port of Spain"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
