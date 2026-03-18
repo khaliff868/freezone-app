@@ -555,6 +555,7 @@ export default function ListingDetailPage() {
                         </svg>
                       </span>
                     )}
+                  </p>
                   <p className="text-sm text-gray-500">Member</p>
                 </div>
               </div>
@@ -771,7 +772,7 @@ export default function ListingDetailPage() {
                   <>
                     <p className="text-gray-600 mb-4">Click the button below to complete payment via PayPal.</p>
                     
-                      href={`https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=triniswap@example.com&amount=${paymentInfo.usdAmount}&currency_code=USD&item_name=${encodeURIComponent('Listing Fee: ' + (listing?.title || ''))}&custom=${paymentInfo.paymentId}`}
+                      href={`https://www.paypal.com/cgi-bin/webscr?...`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition mb-4"
