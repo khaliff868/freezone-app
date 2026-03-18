@@ -555,7 +555,7 @@ export default function ListingDetailPage() {
                         </svg>
                       </span>
                     )}
-              <p className="text-sm text-gray-500">Member</p>
+                  <p className="text-sm text-gray-500">Member</p>
                 </div>
               </div>
               {!isOwner && (
@@ -576,7 +576,7 @@ export default function ListingDetailPage() {
               )}
             </div>
 
-            {/* Actions (owner only) */}
+            {/* Actions */}
             {isOwner && (
               <div className="bg-white rounded-2xl shadow-lg p-6 space-y-3">
                 <h3 className="font-bold text-gray-900 mb-4">Actions</h3>
