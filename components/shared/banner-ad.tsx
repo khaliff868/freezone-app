@@ -72,7 +72,7 @@ export default function BannerAd({ placement, className = '' }: BannerAdProps) {
       </div>
 
       {/* Banner Image */}
-      <div className="relative w-full aspect-[4/1] sm:aspect-[5/1] bg-gray-800">
+      <div className="relative w-full aspect-[8/3] sm:aspect-[10/3] bg-gray-800">
         <Image
           src={currentBanner.imageUrl}
           alt={currentBanner.title}
