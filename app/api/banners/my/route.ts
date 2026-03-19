@@ -41,7 +41,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Title and image URL are required' }, { status: 400 });
     }
 
-    // Create banner with PENDING_PAYMENT status
     const banner = await prisma.bannerAd.create({
       data: {
         title,
@@ -54,10 +53,19 @@ export async function POST(request: NextRequest) {
         amount: BANNER_AD_FEE_AMOUNT,
         currency: 'TTD',
         userId: session.user.id,
+        paymentProofUrl: null,
+        paymentReference: null,
+        verifiedAt: null,
+        verifiedBy: null,
+        rejectedAt: null,
+        rejectionReason: null,
+        adminNotes: null,
+        startsAt: null,
+        endsAt: null,
       },
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       banner,
       message: `Banner created. Payment of ${BANNER_AD_FEE_AMOUNT} TTD required for activation.`,
       requiresPayment: true,
@@ -78,13 +86,13 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { 
-      id, 
-      title, 
-      imageUrl, 
-      linkUrl, 
+    const {
+      id,
+      title,
+      imageUrl,
+      linkUrl,
       placement,
-      action,  // 'update', 'submit_payment', 'renew'
+      action, // 'update', 'submit_payment', 'renew'
       paymentMethod,
       paymentProofUrl,
       paymentReference,
@@ -94,7 +102,6 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Banner ID required' }, { status: 400 });
     }
 
-    // Verify ownership
     const existing = await prisma.bannerAd.findUnique({ where: { id } });
     if (!existing || existing.userId !== session.user.id) {
       return NextResponse.json({ error: 'Banner not found or unauthorized' }, { status: 404 });
@@ -113,17 +120,21 @@ export async function PUT(request: NextRequest) {
       const banner = await prisma.bannerAd.update({
         where: { id },
         data: {
+          status: 'PENDING_VERIFICATION',
+          active: false,
           paymentProofUrl,
           paymentReference: paymentReference || null,
+          rejectedAt: null,
+          rejectionReason: null,
+          adminNotes: null,
         },
       });
 
-      // Create fee payment record
       await prisma.feePayment.create({
         data: {
           bannerAdId: id,
           userId: session.user.id,
-          purpose: 'BANNER_AD',
+          purpose: existing.endsAt || existing.status === 'EXPIRED' ? 'BANNER_RENEWAL' : 'BANNER_AD',
           amount: BANNER_AD_FEE_AMOUNT,
           currency: 'TTD',
           method: paymentMethod,
@@ -133,7 +144,7 @@ export async function PUT(request: NextRequest) {
         },
       });
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         banner,
         message: 'Payment proof submitted. Awaiting admin verification.',
       });
@@ -149,10 +160,18 @@ export async function PUT(request: NextRequest) {
         where: { id },
         data: {
           status: 'PENDING_PAYMENT',
+          active: false,
+          paymentProofUrl: null,
+          paymentReference: null,
+          verifiedAt: null,
+          verifiedBy: null,
+          rejectedAt: null,
+          rejectionReason: null,
+          adminNotes: null,
         },
       });
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         banner,
         message: `Renewal initiated. Payment of ${BANNER_AD_FEE_AMOUNT} TTD required.`,
         requiresPayment: true,
@@ -160,7 +179,7 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    // Regular update (only for pending banners)
+    // Regular update (only for unpaid banners)
     if (existing.status === 'PENDING_PAYMENT') {
       const banner = await prisma.bannerAd.update({
         where: { id },
@@ -175,14 +194,14 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ banner });
     }
 
-    return NextResponse.json({ error: 'Active banners cannot be modified' }, { status: 400 });
+    return NextResponse.json({ error: 'Only unpaid banners can be modified' }, { status: 400 });
   } catch (error) {
     console.error('Error updating banner:', error);
     return NextResponse.json({ error: 'Failed to update banner' }, { status: 500 });
   }
 }
 
-// DELETE - Delete user's own banner (only if pending)
+// DELETE - Delete user's own banner (only if pending payment)
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -197,15 +216,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Banner ID required' }, { status: 400 });
     }
 
-    // Verify ownership
     const existing = await prisma.bannerAd.findUnique({ where: { id } });
     if (!existing || existing.userId !== session.user.id) {
       return NextResponse.json({ error: 'Banner not found or unauthorized' }, { status: 404 });
     }
 
-    // Can only delete pending banners
     if (existing.status !== 'PENDING_PAYMENT') {
-      return NextResponse.json({ error: 'Only pending banners can be deleted' }, { status: 400 });
+      return NextResponse.json({ error: 'Only unpaid banners can be deleted' }, { status: 400 });
     }
 
     await prisma.bannerAd.delete({ where: { id } });
