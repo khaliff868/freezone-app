@@ -12,12 +12,12 @@ export const POSTING_FEE_CURRENCY = process.env.POSTING_FEE_CURRENCY || 'TTD';
 
 // Monetization Configuration
 export const LISTING_FEE_AMOUNT = 100; // TTD - Fee for paid listings after trial
-export const BANNER_AD_FEE_AMOUNT = 1000; // TTD - Fee for banner ads
+export const BANNER_AD_FEE_AMOUNT = 700; // TTD - Fee for banner ads
 
 // Expiry Configuration (in days)
 export const FREE_ITEMS_EXPIRY_DAYS = 30; // Free Items expire after 30 days
 export const PAID_LISTING_EXPIRY_DAYS = 90; // Paid listings expire after 90 days
-export const BANNER_AD_EXPIRY_DAYS = 90; // Banner ads run for 90 days
+export const BANNER_AD_EXPIRY_DAYS = 30; // Banner ads run for 30 days
 
 // Trial Configuration
 export const TRIAL_DURATION_DAYS = 7; // 7-day free trial for new users
