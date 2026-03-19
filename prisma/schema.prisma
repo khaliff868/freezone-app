@@ -509,32 +509,43 @@ model BannerAd {
   linkUrl     String?
   placement   String   @default("homepage_top") // homepage_top, homepage_mid, browse_top, browse_mid
   status      BannerStatus @default(PENDING_PAYMENT)
-  active      Boolean  @default(false)  // Legacy field, use status instead
+  active      Boolean  @default(false)  // Legacy field, still used for display eligibility
   sortOrder   Int      @default(0)
-  startsAt    DateTime?   // When banner starts displaying (after payment approval)
-  endsAt      DateTime?   // When banner expires (90 days from approval)
+
+  // Activation window
+  startsAt    DateTime?   // Set when admin approves payment
+  endsAt      DateTime?   // 30 days from approval
   startDate   DateTime?   // Legacy field
   endDate     DateTime?   // Legacy field
+
+  // Performance
   clicks      Int      @default(0)
   impressions Int      @default(0)
+
+  // Ownership
   userId      String?
   user        User?    @relation(fields: [userId], references: [id])
-  
+
   // Payment tracking
-  amount      Float    @default(1000)  // 1000 TTD
-  currency    String   @default("TTD")
-  paymentProofUrl String?
-  paymentReference String?
-  adminNotes  String?
-  rejectedAt  DateTime?
-  rejectionReason String?
-  
+  amount            Float    @default(700) // 700 TTD
+  currency          String   @default("TTD")
+  paymentProofUrl   String?
+  paymentReference  String?
+  adminNotes        String?
+  verifiedAt        DateTime?
+  verifiedBy        String?
+  rejectedAt        DateTime?
+  rejectionReason   String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([placement, status])
   @@index([userId])
   @@index([status])
+  @@index([active])
+  @@index([startsAt])
+  @@index([endsAt])
 }
 
 // ============================================================
