@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
-import { BANNER_AD_EXPIRY_DAYS, BANNER_AD_FEE_AMOUNT } from '@/lib/constants';
+import { BANNER_AD_EXPIRY_DAYS } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +56,8 @@ export async function POST(request: NextRequest) {
         startsAt: now,
         endsAt,
         amount: 0, // Admin-created - no payment required
+        verifiedAt: now,
+        verifiedBy: session.user.id,
       },
     });
 
@@ -75,15 +77,15 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { 
-      id, 
-      action,  // 'approve', 'reject', 'update'
+    const {
+      id,
+      action, // 'approve', 'reject', 'update'
       reason,
       adminNotes,
-      title, 
-      imageUrl, 
-      linkUrl, 
-      placement, 
+      title,
+      imageUrl,
+      linkUrl,
+      placement,
       sortOrder,
     } = body;
 
@@ -91,7 +93,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Banner ID required' }, { status: 400 });
     }
 
-    const existing = await prisma.bannerAd.findUnique({ 
+    const existing = await prisma.bannerAd.findUnique({
       where: { id },
       include: { user: true },
     });
@@ -104,21 +106,15 @@ export async function PUT(request: NextRequest) {
 
     // Handle approval
     if (action === 'approve') {
-      if (existing.status !== 'PENDING_PAYMENT') {
-        return NextResponse.json({ error: 'Banner is not pending payment' }, { status: 400 });
+      if (existing.status !== 'PENDING_VERIFICATION') {
+        return NextResponse.json({ error: 'Banner is not awaiting verification' }, { status: 400 });
       }
 
-      // Check for payment proof
       if (!existing.paymentProofUrl) {
         return NextResponse.json({ error: 'No payment proof found' }, { status: 400 });
       }
 
-      // Calculate expiration: max(current endsAt, now) + BANNER_AD_EXPIRY_DAYS
-      let baseDate = now;
-      if (existing.endsAt && existing.endsAt > now) {
-        baseDate = existing.endsAt;
-      }
-      const endsAt = new Date(baseDate);
+      const endsAt = new Date(now);
       endsAt.setDate(endsAt.getDate() + BANNER_AD_EXPIRY_DAYS);
 
       const banner = await prisma.bannerAd.update({
@@ -126,13 +122,16 @@ export async function PUT(request: NextRequest) {
         data: {
           status: 'ACTIVE',
           active: true,
-          startsAt: existing.startsAt || now,
+          startsAt: now,
           endsAt,
+          verifiedAt: now,
+          verifiedBy: session.user.id,
           adminNotes: adminNotes || null,
+          rejectedAt: null,
+          rejectionReason: null,
         },
       });
 
-      // Update the fee payment record if exists
       await prisma.feePayment.updateMany({
         where: { bannerAdId: id, status: 'PENDING' },
         data: {
@@ -143,7 +142,6 @@ export async function PUT(request: NextRequest) {
         },
       });
 
-      // Notify user
       if (existing.userId) {
         await prisma.notification.create({
           data: {
@@ -156,7 +154,7 @@ export async function PUT(request: NextRequest) {
         });
       }
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         banner,
         message: 'Banner approved and activated',
       });
@@ -172,13 +170,13 @@ export async function PUT(request: NextRequest) {
         where: { id },
         data: {
           status: 'REJECTED',
+          active: false,
           rejectedAt: now,
           rejectionReason: reason,
           adminNotes: adminNotes || null,
         },
       });
 
-      // Update the fee payment record if exists
       await prisma.feePayment.updateMany({
         where: { bannerAdId: id, status: 'PENDING' },
         data: {
@@ -187,7 +185,6 @@ export async function PUT(request: NextRequest) {
         },
       });
 
-      // Notify user
       if (existing.userId) {
         await prisma.notification.create({
           data: {
@@ -200,7 +197,7 @@ export async function PUT(request: NextRequest) {
         });
       }
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         banner,
         message: 'Banner rejected',
       });
