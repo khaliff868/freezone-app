@@ -1,79 +1,48 @@
-// Generate Presigned Upload URL for Image Uploads
-
+import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { generatePresignedUploadUrl } from '@/lib/s3';
-import { z } from 'zod';
-import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE_BYTES } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
-const presignedUrlSchema = z.object({
-  fileName: z.string(),
-  contentType: z.string(),
-  fileSize: z.number(),
-  isPublic: z.boolean().default(true),
-});
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-/**
- * POST /api/upload/presigned
- * Generate presigned URL for direct S3 upload
- */
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    
-    const validationResult = presignedUrlSchema.safeParse(body);
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: validationResult.error.errors[0]?.message || 'Validation failed' },
-        { status: 400 }
-      );
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+    if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+
+    if (!file.type.startsWith('image/')) {
+      return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 });
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File must be under 10MB' }, { status: 400 });
     }
 
-    const { fileName, contentType, fileSize, isPublic } = validationResult.data;
+    const ext = file.name.split('.').pop();
+    const fileName = `listings/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Validate file type
-    if (!ALLOWED_IMAGE_TYPES.includes(contentType)) {
-      return NextResponse.json(
-        { error: 'Invalid file type. Only JPG, PNG, and WebP images are allowed.' },
-        { status: 400 }
-      );
-    }
+    const { error } = await supabase.storage
+      .from('images')
+      .upload(fileName, buffer, { contentType: file.type, upsert: false });
 
-    // Validate file size
-    if (fileSize > MAX_IMAGE_SIZE_BYTES) {
-      return NextResponse.json(
-        { error: `File size must be less than ${MAX_IMAGE_SIZE_BYTES / (1024 * 1024)}MB` },
-        { status: 400 }
-      );
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Generate presigned URL
-    const { uploadUrl, cloud_storage_path } = await generatePresignedUploadUrl(
-      fileName,
-      contentType,
-      isPublic
-    );
+    const { data: urlData } = supabase.storage.from('images').getPublicUrl(fileName);
 
-    return NextResponse.json({
-      uploadUrl,
-      cloud_storage_path,
-    });
+    return NextResponse.json({ publicUrl: urlData.publicUrl });
   } catch (error) {
-    console.error('Error generating presigned URL:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate upload URL' },
-      { status: 500 }
-    );
+    console.error('Upload error:', error);
+    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }
