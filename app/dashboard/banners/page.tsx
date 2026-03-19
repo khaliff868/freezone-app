@@ -195,7 +195,7 @@ export default function UserBannersPage() {
         {/* Info Box */}
         <div className="bg-gradient-to-r from-tropical-purple/10 to-tropical-pink/10 dark:from-tropical-purple/20 dark:to-tropical-pink/20 rounded-2xl p-4 mb-6 border border-tropical-purple/20">
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            <span className="font-semibold">📢 Promote your business or products!</span> Banner ads cost <span className="font-bold text-tropical-purple">1,000 TTD</span> for 90 days.
+            <span className="font-semibold">📢 Promote your business or products!</span> Banner ads cost <span className="font-bold text-tropical-purple">700 TTD</span> for 30 days.
             Recommended image size: <span className="font-medium">1200×240px</span> (5:1 ratio).
             After creating an ad, submit payment proof for admin verification.
           </p>
@@ -422,10 +422,10 @@ export default function UserBannersPage() {
                   {banner.status === 'PENDING_PAYMENT' && (
                     <div className="mt-3 p-3 bg-orange-50 rounded-lg">
                       <p className="text-sm text-orange-800 font-medium">
-                        💳 Payment of 1,000 TTD required
+                        💳 Payment of 700 TTD required
                       </p>
                       <p className="text-xs text-orange-600 mt-1">
-                        Submit payment proof to activate this banner ad for 90 days.
+                        Submit payment proof to activate this banner ad for 30 days.
                       </p>
                     </div>
                   )}
@@ -461,7 +461,7 @@ export default function UserBannersPage() {
                         }}
                         className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gradient-to-r from-trini-gold to-tropical-orange text-white font-medium rounded-lg hover:opacity-90 transition"
                       >
-                        Renew for 1000 TTD
+                        Renew for 700 TTD
                       </button>
                     )}
 
@@ -479,7 +479,7 @@ export default function UserBannersPage() {
                   {/* Helper text for renewal */}
                   {(banner.status === 'ACTIVE' || banner.status === 'EXPIRED') && (
                     <p className="text-xs text-gray-500 mt-2">
-                      Submit payment proof to renew this banner ad for another 90 days.
+                      Submit payment proof to renew this banner ad for another 30 days.
                     </p>
                   )}
                 </div>
