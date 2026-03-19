@@ -1,7 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Megaphone, Plus, Trash2, Eye, EyeOff, ExternalLink, BarChart3, MousePointerClick, ArrowLeft, Pencil, X, Check } from 'lucide-react';
+import {
+  Megaphone,
+  Plus,
+  Trash2,
+  ExternalLink,
+  BarChart3,
+  MousePointerClick,
+  ArrowLeft,
+  Pencil,
+  X,
+  Check,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -12,7 +25,7 @@ interface BannerAd {
   imageUrl: string;
   linkUrl: string | null;
   placement: string;
-  status: 'PENDING_PAYMENT' | 'ACTIVE' | 'EXPIRED' | 'REJECTED';
+  status: 'PENDING_PAYMENT' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'EXPIRED' | 'REJECTED';
   active: boolean;
   sortOrder: number;
   startsAt: string | null;
@@ -23,13 +36,15 @@ interface BannerAd {
   impressions: number;
   amount: number;
   paymentProofUrl: string | null;
+  paymentReference?: string | null;
   rejectionReason: string | null;
   createdAt: string;
   user?: { id: string; name: string; email: string } | null;
 }
 
 const STATUS_BADGES: Record<string, { label: string; color: string }> = {
-  PENDING_PAYMENT: { label: '⏳ Pending Payment', color: 'bg-orange-100 text-orange-700' },
+  PENDING_PAYMENT: { label: '⏳ Awaiting Payment', color: 'bg-orange-100 text-orange-700' },
+  PENDING_VERIFICATION: { label: '🟡 Awaiting Verification', color: 'bg-yellow-100 text-yellow-700' },
   ACTIVE: { label: '✅ Active', color: 'bg-green-100 text-green-700' },
   EXPIRED: { label: '⏹ Expired', color: 'bg-gray-100 text-gray-600' },
   REJECTED: { label: '❌ Rejected', color: 'bg-red-100 text-red-700' },
@@ -47,6 +62,9 @@ export default function AdminBannersPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     title: '',
     imageUrl: '',
@@ -68,7 +86,7 @@ export default function AdminBannersPage() {
       const res = await fetch('/api/admin/banners');
       const data = await res.json();
       setBanners(data.banners || []);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load banners');
     } finally {
       setLoading(false);
@@ -113,6 +131,7 @@ export default function AdminBannersPage() {
     }
 
     try {
+      setSaving(true);
       const method = editingId ? 'PUT' : 'POST';
       const body = editingId ? { id: editingId, ...form } : form;
 
@@ -127,8 +146,10 @@ export default function AdminBannersPage() {
       toast.success(editingId ? 'Banner updated!' : 'Banner created!');
       resetForm();
       loadBanners();
-    } catch (error) {
+    } catch {
       toast.error('Failed to save banner');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -142,7 +163,7 @@ export default function AdminBannersPage() {
       if (!res.ok) throw new Error('Failed');
       toast.success(banner.active ? 'Banner disabled' : 'Banner enabled');
       loadBanners();
-    } catch (error) {
+    } catch {
       toast.error('Failed to update banner');
     }
   };
@@ -154,8 +175,57 @@ export default function AdminBannersPage() {
       if (!res.ok) throw new Error('Failed');
       toast.success('Banner deleted');
       loadBanners();
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete banner');
+    }
+  };
+
+  const approveBanner = async (id: string) => {
+    try {
+      setProcessingId(id);
+      const res = await fetch('/api/admin/banners', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'approve' }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+
+      toast.success('Banner approved and activated');
+      loadBanners();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to approve banner');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const rejectBanner = async (id: string) => {
+    try {
+      const reason = rejectionReason[id]?.trim();
+      if (!reason) {
+        toast.error('Rejection reason is required');
+        return;
+      }
+
+      setProcessingId(id);
+      const res = await fetch('/api/admin/banners', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'reject', reason }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+
+      toast.success('Banner rejected');
+      setRejectionReason((prev) => ({ ...prev, [id]: '' }));
+      loadBanners();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to reject banner');
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -165,7 +235,6 @@ export default function AdminBannersPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <Link href="/admin" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
@@ -180,7 +249,10 @@ export default function AdminBannersPage() {
           </div>
         </div>
         <button
-          onClick={() => { resetForm(); setShowForm(true); }}
+          onClick={() => {
+            resetForm();
+            setShowForm(true);
+          }}
           className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
         >
           <Plus className="w-5 h-5" />
@@ -188,17 +260,15 @@ export default function AdminBannersPage() {
         </button>
       </div>
 
-      {/* Create/Edit Form */}
       {showForm && (
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8 border-2 border-tropical-purple/20">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-gray-900">
-              {editingId ? 'Edit Banner' : 'New Banner'}
-            </h2>
+            <h2 className="text-lg font-bold text-gray-900">{editingId ? 'Edit Banner' : 'New Banner'}</h2>
             <button onClick={resetForm} className="p-1.5 hover:bg-gray-100 rounded-lg">
               <X className="w-5 h-5 text-gray-500" />
             </button>
           </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -220,7 +290,9 @@ export default function AdminBannersPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tropical-purple focus:border-transparent"
                 >
                   {PLACEMENTS.map((p) => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -233,7 +305,7 @@ export default function AdminBannersPage() {
                 value={form.imageUrl}
                 onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tropical-purple focus:border-transparent"
-                placeholder="https://cdn.shopify.com/s/files/1/0090/9236/6436/files/RECOMMENDED_SHOPIFY_BANNER_SIZE_FOR_DESKTOP_1024x1024.png?v=1732779229"
+                placeholder="https://example.com/banner-image.jpg"
                 required
               />
               <p className="text-xs text-gray-500 mt-1">Recommended size: 1200×240px (5:1 ratio)</p>
@@ -261,7 +333,7 @@ export default function AdminBannersPage() {
                 value={form.linkUrl}
                 onChange={(e) => setForm({ ...form, linkUrl: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tropical-purple focus:border-transparent"
-                placeholder="https://example.com (opens in new tab when clicked)"
+                placeholder="https://example.com"
               />
             </div>
 
@@ -318,17 +390,17 @@ export default function AdminBannersPage() {
               </button>
               <button
                 type="submit"
-                className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 <Check className="w-4 h-4" />
-                {editingId ? 'Update Banner' : 'Create Banner'}
+                {saving ? 'Saving...' : editingId ? 'Update Banner' : 'Create Banner'}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Banners List */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-tropical-purple border-t-transparent"></div>
@@ -339,7 +411,10 @@ export default function AdminBannersPage() {
           <h3 className="text-xl font-semibold text-gray-700 mb-2">No banners yet</h3>
           <p className="text-gray-500 mb-6">Create your first banner ad to display on the site</p>
           <button
-            onClick={() => { resetForm(); setShowForm(true); }}
+            onClick={() => {
+              resetForm();
+              setShowForm(true);
+            }}
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
           >
             <Plus className="w-5 h-5" />
@@ -352,11 +427,10 @@ export default function AdminBannersPage() {
             <div
               key={banner.id}
               className={`bg-white rounded-xl shadow-md overflow-hidden border-2 transition-colors ${
-                banner.active ? 'border-transparent' : 'border-gray-200 opacity-60'
+                banner.active ? 'border-transparent' : 'border-gray-200'
               }`}
             >
               <div className="flex flex-col md:flex-row">
-                {/* Preview */}
                 <div className="relative w-full md:w-72 aspect-[5/1] md:aspect-auto md:h-auto bg-gray-100 flex-shrink-0">
                   <Image
                     src={banner.imageUrl}
@@ -370,9 +444,8 @@ export default function AdminBannersPage() {
                   />
                 </div>
 
-                {/* Info */}
                 <div className="flex-1 p-4">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="font-bold text-gray-900 text-lg">{banner.title}</h3>
                       {banner.user && (
@@ -393,14 +466,15 @@ export default function AdminBannersPage() {
                         </a>
                       )}
                     </div>
-                    <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                      banner.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {banner.active ? 'Active' : 'Inactive'}
+                    <div
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        STATUS_BADGES[banner.status]?.color || 'bg-gray-100 text-gray-500'
+                      }`}
+                    >
+                      {STATUS_BADGES[banner.status]?.label || banner.status}
                     </div>
                   </div>
 
-                  {/* Stats */}
                   <div className="flex items-center gap-6 mt-3">
                     <div className="flex items-center gap-1.5 text-sm text-gray-600">
                       <BarChart3 className="w-4 h-4" />
@@ -417,17 +491,83 @@ export default function AdminBannersPage() {
                     )}
                   </div>
 
-                  {/* Date range */}
-                  {(banner.startDate || banner.endDate) && (
+                  {banner.startsAt || banner.endsAt ? (
                     <p className="text-xs text-gray-400 mt-2">
-                      {banner.startDate ? `From ${new Date(banner.startDate).toLocaleDateString()}` : ''}
-                      {banner.startDate && banner.endDate ? ' — ' : ''}
-                      {banner.endDate ? `Until ${new Date(banner.endDate).toLocaleDateString()}` : ''}
+                      {banner.startsAt ? `From ${new Date(banner.startsAt).toLocaleDateString()}` : ''}
+                      {banner.startsAt && banner.endsAt ? ' — ' : ''}
+                      {banner.endsAt ? `Until ${new Date(banner.endsAt).toLocaleDateString()}` : ''}
+                    </p>
+                  ) : null}
+
+                  {banner.status === 'PENDING_PAYMENT' && (
+                    <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                      <p className="text-sm text-orange-800 font-medium">Payment not submitted yet</p>
+                      <p className="text-xs text-orange-700 mt-1">
+                        Waiting for user to submit payment for 700 TTD banner activation.
+                      </p>
+                    </div>
+                  )}
+
+                  {banner.status === 'PENDING_VERIFICATION' && (
+                    <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <p className="text-sm text-yellow-800 font-medium">Payment proof awaiting review</p>
+                      <p className="text-xs text-yellow-700 mt-1">
+                        Review payment proof and approve or reject this banner. Approved banners run for 30 days.
+                      </p>
+                      {banner.paymentReference && (
+                        <p className="text-xs text-yellow-800 mt-2">
+                          Reference: <span className="font-semibold">{banner.paymentReference}</span>
+                        </p>
+                      )}
+                      {banner.paymentProofUrl && (
+                        <a
+                          href={banner.paymentProofUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-caribbean-ocean hover:underline mt-2"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          View Payment Proof
+                        </a>
+                      )}
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => approveBanner(banner.id)}
+                          disabled={processingId === banner.id}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {processingId === banner.id ? 'Processing...' : 'Approve'}
+                        </button>
+
+                        <input
+                          type="text"
+                          value={rejectionReason[banner.id] || ''}
+                          onChange={(e) =>
+                            setRejectionReason((prev) => ({ ...prev, [banner.id]: e.target.value }))
+                          }
+                          placeholder="Rejection reason"
+                          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg"
+                        />
+
+                        <button
+                          onClick={() => rejectBanner(banner.id)}
+                          disabled={processingId === banner.id}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {banner.status === 'REJECTED' && banner.rejectionReason && (
+                    <p className="text-xs text-red-600 mt-2 p-2 bg-red-50 rounded">
+                      Reason: {banner.rejectionReason}
                     </p>
                   )}
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 mt-3">
+                  <div className="flex items-center gap-2 mt-3 flex-wrap">
                     <button
                       onClick={() => startEdit(banner)}
                       className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
@@ -435,6 +575,7 @@ export default function AdminBannersPage() {
                       <Pencil className="w-3.5 h-3.5" />
                       Edit
                     </button>
+
                     <button
                       onClick={() => toggleActive(banner)}
                       className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
@@ -446,6 +587,7 @@ export default function AdminBannersPage() {
                       {banner.active ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       {banner.active ? 'Disable' : 'Enable'}
                     </button>
+
                     <button
                       onClick={() => deleteBanner(banner.id)}
                       className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition-colors"
