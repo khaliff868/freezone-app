@@ -654,9 +654,9 @@ export default function ListingDetailPage() {
                       }}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-trini-gold to-tropical-orange text-white font-semibold rounded-xl hover:scale-105 transition-transform"
                     >
-                      <RefreshCcw className="w-5 h-5" />Renew for 100 TTD
+                      <RefreshCcw className="w-5 h-5" />Renew / Pay 100 TTD
                     </button>
-                    <p className="text-xs text-gray-500 mt-2 text-center">Submit payment proof to renew this listing for another 90 days.</p>
+                    <p className="text-xs text-gray-500 mt-2 text-center">Submit payment proof to activate or renew this listing for 90 days.</p>
                   </div>
                 )}
 
