@@ -13,19 +13,35 @@ export async function GET(request: NextRequest) {
     }
 
     const now = new Date();
+
     const banners = await prisma.bannerAd.findMany({
       where: {
         placement,
         status: 'ACTIVE',
-        // Check if within active date range
-        OR: [
-          { startsAt: null, endsAt: null },
-          { startsAt: { lte: now }, endsAt: null },
-          { startsAt: null, endsAt: { gte: now } },
-          { startsAt: { lte: now }, endsAt: { gte: now } },
+
+        // Only show active + enabled banners
+        active: true,
+
+        // Ensure banner is within valid date range
+        AND: [
+          {
+            OR: [
+              { startsAt: null },
+              { startsAt: { lte: now } },
+            ],
+          },
+          {
+            OR: [
+              { endsAt: null },
+              { endsAt: { gte: now } },
+            ],
+          },
         ],
       },
-      orderBy: { sortOrder: 'asc' },
+      orderBy: [
+        { sortOrder: 'asc' },
+        { createdAt: 'desc' }, // fallback ordering
+      ],
       select: {
         id: true,
         title: true,
@@ -34,11 +50,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Increment impressions for all returned banners
+    // Increment impressions safely
     if (banners.length > 0) {
       await prisma.bannerAd.updateMany({
-        where: { id: { in: banners.map((b: { id: string }) => b.id) } },
-        data: { impressions: { increment: 1 } },
+        where: {
+          id: { in: banners.map((b) => b.id) },
+        },
+        data: {
+          impressions: { increment: 1 },
+        },
       }).catch(() => {});
     }
 
