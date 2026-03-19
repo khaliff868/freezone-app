@@ -175,7 +175,11 @@ export default function UserBannersPage() {
             <div>
               <h3 className="font-bold text-gray-900 text-lg">{banner.title}</h3>
               <p className="text-sm text-gray-500 mt-0.5">📍 {getPlacementLabel(banner.placement)}</p>
-
+              
+              <p className="text-xs text-blue-600 mt-1">
+                Debug: status = {banner.status}, active = {String(banner.active)}
+              </p>
+              
             </div>
 
             <div
