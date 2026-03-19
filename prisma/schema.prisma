@@ -55,6 +55,7 @@ enum ListingStatus {
 
 enum BannerStatus {
   PENDING_PAYMENT
+  PENDING_VERIFICATION
   ACTIVE
   EXPIRED
   REJECTED
