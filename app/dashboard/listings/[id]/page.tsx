@@ -769,19 +769,26 @@ export default function ListingDetailPage() {
                 </div>
 
                 {paymentInfo.method === 'PAYPAL' ? (
-                  <>
-                    <p className="text-gray-600 mb-4">Click the button below to complete payment via PayPal.</p>
-                    
-                      href={`https://www.paypal.com/cgi-bin/webscr?...`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition mb-4"
-                    >
-                      Pay with PayPal<ExternalLink className="w-5 h-5" />
-                    </a>
-                    <p className="text-sm text-gray-500 text-center">After payment, your listing will be activated automatically.</p>
-                  </>
-                ) : (
+  <>
+    <p className="text-gray-600 mb-4">
+      Click the button below to complete payment via PayPal.
+    </p>
+
+    <a
+      href={`https://www.paypal.com/cgi-bin/webscr?...`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition mb-4"
+    >
+      Pay with PayPal
+      <ExternalLink className="w-5 h-5" />
+    </a>
+
+    <p className="text-sm text-gray-500 text-center">
+      After payment, your listing will be activated automatically.
+    </p>
+  </>
+) : (
                   <>
                     {paymentInfo.bankDetails && (
                       <div className="space-y-3 mb-4">
