@@ -221,48 +221,22 @@ export default function CreateListingPage() {
         }
 
         // Get presigned URL
-        const presignedRes = await fetch('/api/upload/presigned', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName: file.name,
-            contentType: file.type,
-            isPublic: true,
-          }),
-        });
+        // Get presigned URL
+const data = new FormData();
+data.append('file', file);
 
-        if (!presignedRes.ok) {
-          throw new Error('Failed to get upload URL');
-        }
+const res = await fetch('/api/upload/presigned', {
+  method: 'POST',
+  body: data,
+});
 
-        const { uploadUrl, cloud_storage_path } = await presignedRes.json();
+if (!res.ok) {
+  const err = await res.json();
+  throw new Error(err.error || 'Upload failed');
+}
 
-        // Upload to S3
-        const uploadHeaders: HeadersInit = {
-          'Content-Type': file.type,
-        };
-
-        // Check if content-disposition is in signed headers
-        if (uploadUrl.includes('content-disposition')) {
-          uploadHeaders['Content-Disposition'] = 'attachment';
-        }
-
-        const uploadRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: uploadHeaders,
-          body: file,
-        });
-
-        if (!uploadRes.ok) {
-          throw new Error('Failed to upload image');
-        }
-
-        // Get public URL
-        const bucketName = process.env.NEXT_PUBLIC_AWS_BUCKET_NAME || 'uploads';
-        const region = process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
-        const publicUrl = `https://i.ytimg.com/vi/OCAHPLWG4kI/maxresdefault.jpg`;
-
-        setImages(prev => [...prev, publicUrl]);
+const { publicUrl } = await res.json();
+setImages(prev => [...prev, publicUrl]);
       }
       toast.success('Image(s) uploaded successfully');
     } catch (error) {
