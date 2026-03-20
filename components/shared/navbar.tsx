@@ -192,33 +192,33 @@ export function Navbar() {
           isOpen ? 'opacity-100 max-h-screen py-4' : 'opacity-0 max-h-0 py-0 pointer-events-none'
         }`}
       >
-        <Link href="/" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2.5 text-white font-bold text-base hover:text-trini-gold transition-colors">
-          <Home className="w-4 h-4" /> Home
+        <Link href="/" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+          <Home className="w-5 h-5 flex-shrink-0" /> Home
         </Link>
-        <Link href="/browse" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2.5 text-white font-bold text-base hover:text-trini-gold transition-colors">
-          <Search className="w-4 h-4" /> Browse
+        <Link href="/browse" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+          <Search className="w-5 h-5 flex-shrink-0" /> Browse
         </Link>
-        <Link href="/dashboard" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2.5 text-white font-bold text-base hover:text-trini-gold transition-colors">
-          <Package className="w-4 h-4" /> Listings
+        <Link href="/dashboard" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+          <Package className="w-5 h-5 flex-shrink-0" /> Listings
         </Link>
-        <Link href="/dashboard/messages" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2.5 text-white font-bold text-base hover:text-trini-gold transition-colors">
-          <MessageSquare className="w-4 h-4" /> Messages
+        <Link href="/dashboard/messages" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+          <MessageSquare className="w-5 h-5 flex-shrink-0" /> Messages
         </Link>
-        <Link href="/dashboard/swaps" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2.5 text-white font-bold text-base hover:text-trini-gold transition-colors">
-          <RefreshCw className="w-4 h-4" /> Swaps
+        <Link href="/dashboard/swaps" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+          <RefreshCw className="w-5 h-5 flex-shrink-0" /> Swaps
         </Link>
-        <Link href="/dashboard/wishlist" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2.5 text-white font-bold text-base hover:text-trini-gold transition-colors">
-          <Heart className="w-4 h-4" /> Wishlist
+        <Link href="/dashboard/wishlist" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+          <Heart className="w-5 h-5 flex-shrink-0" /> Wishlist
         </Link>
-        <Link href="/dashboard/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2.5 text-white font-bold text-base hover:text-trini-gold transition-colors">
-          <Settings className="w-4 h-4" /> Settings
+        <Link href="/dashboard/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+          <Settings className="w-5 h-5 flex-shrink-0" /> Settings
         </Link>
-        <Link href="/contact" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2.5 text-white font-bold text-base hover:text-trini-gold transition-colors">
-          <Mail className="w-4 h-4" /> Contact Us
+        <Link href="/contact" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+          <Mail className="w-5 h-5 flex-shrink-0" /> Contact Us
         </Link>
         {isAdmin && (
-          <Link href="/admin" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2.5 text-white font-bold text-base hover:text-trini-gold transition-colors">
-            <Shield className="w-4 h-4" /> Admin
+          <Link href="/admin" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+            <Shield className="w-5 h-5 flex-shrink-0" /> Admin
           </Link>
         )}
       </div>
