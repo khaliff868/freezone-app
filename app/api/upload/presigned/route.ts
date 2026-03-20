@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lenF0ZXdydml5cXlmYWZpa2RsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzM2Mjg2MSwiZXhwIjoyMDg4OTM4ODYxfQ.-wN_WFfvVXuxLsg1ThlIoKf81yiAhVlgD7mCioiALbY'
 );
 
 export async function POST(request: NextRequest) {
@@ -19,11 +19,13 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
+
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
 
     if (!file.type.startsWith('image/')) {
       return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 });
     }
+
     if (file.size > 10 * 1024 * 1024) {
       return NextResponse.json({ error: 'File must be under 10MB' }, { status: 400 });
     }
