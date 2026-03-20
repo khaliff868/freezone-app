@@ -12,6 +12,7 @@ export function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -53,7 +54,7 @@ export function Navbar() {
   const isAdmin = session.user.role === 'ADMIN';
 
   return (
-    <nav className="bg-gradient-to-r from-trini-red via-trini-black to-trini-red sticky top-0 z-50 shadow-lg w-full">
+    <nav className="bg-gradient-to-r from-trini-red via-trini-black to-trini-red sticky top-0 z-50 shadow-lg w-full relative">
       <div className="flex items-center justify-between w-full h-16 px-4">
         {/* Left Section: Logo + Brand Name */}
         <Link href="/" className="flex items-center gap-2 flex-shrink-0">
@@ -63,7 +64,7 @@ export function Navbar() {
           <span className="text-xl font-bold text-white hidden sm:block whitespace-nowrap">Freezone Swap or Sell</span>
         </Link>
 
-        {/* Center Section: Navigation Tabs */}
+        {/* Center Section: Navigation Tabs - Desktop Only */}
         <div className="hidden md:flex items-center gap-1 flex-nowrap whitespace-nowrap">
           <Link
             href="/"
@@ -227,7 +228,7 @@ export function Navbar() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-lg">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-lg">
             <User className="w-4 h-4 text-trini-gold" />
             <span className="text-sm font-medium text-white">{session.user.name}</span>
             {isAdmin && (
@@ -244,8 +245,51 @@ export function Navbar() {
             <LogOut className="w-4 h-4" />
             <span className="hidden sm:inline">Logout</span>
           </button>
+
+          {/* Hamburger Button - Mobile Only */}
+          <button
+            className="md:hidden text-white"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            ☰
+          </button>
         </div>
       </div>
+
+      {/* Mobile Dropdown Menu */}
+      {isOpen && (
+        <div className="absolute top-full left-0 w-full bg-red-700 flex flex-col p-4 md:hidden z-50">
+          <Link href="/" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2 text-white font-medium">
+            <Home className="w-4 h-4" /> Home
+          </Link>
+          <Link href="/browse" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2 text-white font-medium">
+            <Search className="w-4 h-4" /> Browse
+          </Link>
+          <Link href="/dashboard" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2 text-white font-medium">
+            <Package className="w-4 h-4" /> Listings
+          </Link>
+          <Link href="/dashboard/messages" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2 text-white font-medium">
+            <MessageSquare className="w-4 h-4" /> Messages
+          </Link>
+          <Link href="/dashboard/swaps" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2 text-white font-medium">
+            <RefreshCw className="w-4 h-4" /> Swaps
+          </Link>
+          <Link href="/dashboard/wishlist" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2 text-white font-medium">
+            <Heart className="w-4 h-4" /> Wishlist
+          </Link>
+          <Link href="/dashboard/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2 text-white font-medium">
+            <Settings className="w-4 h-4" /> Settings
+          </Link>
+          <Link href="/contact" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2 text-white font-medium">
+            <Mail className="w-4 h-4" /> Contact Us
+          </Link>
+          {isAdmin && (
+            <Link href="/admin" onClick={() => setIsOpen(false)} className="flex items-center gap-2 py-2 text-white font-medium">
+              <Shield className="w-4 h-4" /> Admin
+            </Link>
+          )}
+        </div>
+      )}
     </nav>
   );
 }
