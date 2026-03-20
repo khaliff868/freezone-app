@@ -138,13 +138,23 @@ export default function UserBannersPage() {
         body: JSON.stringify(body),
       });
 
-      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
 
-      toast.success(editingId ? 'Banner updated!' : 'Banner created!');
-      resetForm();
-      loadBanners();
-    } catch {
-      toast.error('Failed to save banner');
+      if (editingId) {
+        toast.success('Banner updated!');
+        resetForm();
+        loadBanners();
+      } else {
+        toast.success('Banner created! Please submit payment proof below to activate.');
+        resetForm();
+        loadBanners();
+        setTimeout(() => {
+          window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }, 500);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save banner');
     } finally {
       setSaving(false);
     }
@@ -170,24 +180,17 @@ export default function UserBannersPage() {
     try {
       setUploadingBannerId(bannerId);
 
-      const presignedRes = await fetch('/api/upload/presigned', {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const uploadRes = await fetch('/api/upload/presigned', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: file.name, contentType: file.type, isPublic: false }),
-      });
-
-      if (!presignedRes.ok) throw new Error('Failed to get upload URL');
-
-      const { uploadUrl, cloud_storage_path } = await presignedRes.json();
-
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
+        body: formData,
       });
 
       if (!uploadRes.ok) throw new Error('Failed to upload file');
 
+      const { publicUrl } = await uploadRes.json();
       const reference = `BAN-${Date.now()}`;
 
       const submitRes = await fetch('/api/banners/my', {
@@ -197,16 +200,13 @@ export default function UserBannersPage() {
           id: bannerId,
           action: 'submit_payment',
           paymentMethod: 'BANK_DEPOSIT',
-          paymentProofUrl: cloud_storage_path,
+          paymentProofUrl: publicUrl,
           paymentReference: reference,
         }),
       });
 
       const result = await submitRes.json();
-
-      if (!submitRes.ok) {
-        throw new Error(result.error || 'Failed to submit payment proof');
-      }
+      if (!submitRes.ok) throw new Error(result.error || 'Failed to submit payment proof');
 
       toast.success('Payment proof uploaded! Awaiting admin verification.');
       loadBanners();
@@ -421,9 +421,6 @@ export default function UserBannersPage() {
                       <div>
                         <h3 className="font-bold text-gray-900 text-lg">{banner.title}</h3>
                         <p className="text-sm text-gray-500 mt-0.5">📍 {getPlacementLabel(banner.placement)}</p>
-                        <p className="text-xs text-blue-600 mt-1">
-                          Debug: status = {banner.status}, active = {String(banner.active)}
-                        </p>
                         {banner.linkUrl && (
                           <a
                             href={banner.linkUrl}
