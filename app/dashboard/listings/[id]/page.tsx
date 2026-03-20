@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Tag, Clock, User, Star, RefreshCcw, Edit, Trash2, CreditCard, AlertCircle, MessageSquare, ArrowRightLeft, X, Check, Loader2, Building, Landmark, Copy, Upload, ExternalLink, Heart } from 'lucide-react';
+import { ArrowLeft, MapPin, Tag, Clock, User, Star, RefreshCcw, Edit, Trash2, CreditCard, AlertCircle, MessageSquare, ArrowRightLeft, X, Check, Loader2, Building, Landmark, Copy, Upload, ExternalLink, Heart, ShoppingBag } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 import { ImageGallery } from '@/components/ui/image-gallery';
@@ -90,6 +90,7 @@ export default function ListingDetailPage() {
   const [togglingWishlist, setTogglingWishlist] = useState(false);
   const [paymentExpired, setPaymentExpired] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<string>('');
+  const [markingAsSold, setMarkingAsSold] = useState(false);
 
   const listingId = params?.id as string;
 
@@ -198,6 +199,29 @@ export default function ListingDetailPage() {
     }
   };
 
+  const handleMarkAsSold = async () => {
+    if (!confirm('Mark this listing as sold? This will disable further engagement and notify the admin.')) return;
+    setMarkingAsSold(true);
+    try {
+      const res = await fetch('/api/listings/mark-sold', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: listingId }),
+      });
+      if (res.ok) {
+        toast.success('Listing marked as sold!');
+        loadListing();
+      } else {
+        const error = await res.json();
+        toast.error(error.error || 'Failed to mark as sold');
+      }
+    } catch (error) {
+      toast.error('Failed to mark as sold');
+    } finally {
+      setMarkingAsSold(false);
+    }
+  };
+
   const handlePayFee = () => {
     if (!session?.user?.id) { toast.error('Please login to pay'); return; }
     setShowPaymentModal(true);
@@ -234,19 +258,15 @@ export default function ListingDetailPage() {
     if (!paymentInfo) return;
     setUploadingProof(true);
     try {
-      const presignedRes = await fetch('/api/upload/presigned', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: file.name, contentType: file.type, isPublic: false }),
-      });
-      if (!presignedRes.ok) throw new Error('Failed to get upload URL');
-      const { uploadUrl, cloud_storage_path } = await presignedRes.json();
-      const uploadRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadRes = await fetch('/api/upload/presigned', { method: 'POST', body: formData });
       if (!uploadRes.ok) throw new Error('Failed to upload file');
+      const { publicUrl } = await uploadRes.json();
       const proofRes = await fetch('/api/payments/upload-proof', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentId: paymentInfo.paymentId, proofUrl: cloud_storage_path }),
+        body: JSON.stringify({ paymentId: paymentInfo.paymentId, proofUrl: publicUrl }),
       });
       if (proofRes.ok) {
         toast.success('Payment proof uploaded! We will verify your payment within 24-48 hours.');
@@ -398,6 +418,7 @@ export default function ListingDetailPage() {
   };
 
   const isOwner = session?.user?.id === listing?.user?.id;
+  const isSold = listing?.status === 'SOLD';
 
   if (loading) {
     return (
@@ -416,7 +437,7 @@ export default function ListingDetailPage() {
         <div className="text-center">
           <AlertCircle className="w-20 h-20 text-trini-red mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Listing Not Found</h2>
-          <p className="text-gray-600 mb-6">This listing may have been removed or doesn't exist.</p>
+          <p className="text-gray-600 mb-6">This listing may have been removed or doesn&apos;t exist.</p>
           <Link href="/dashboard" className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-trini-red to-tropical-orange text-white font-semibold rounded-xl hover:scale-105 transition-transform">
             <ArrowLeft className="w-5 h-5" />Back to Dashboard
           </Link>
@@ -447,6 +468,12 @@ export default function ListingDetailPage() {
                   </div>
                 </div>
               )}
+              {/* SOLD overlay */}
+              {isSold && (
+                <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
+                  <span className="text-white text-4xl font-extrabold tracking-widest bg-caribbean-ocean/80 px-6 py-3 rounded-2xl rotate-[-15deg] shadow-xl">SOLD</span>
+                </div>
+              )}
               <div className="absolute top-6 left-6 flex gap-2">
                 {listing.featuredStatus === 'ACTIVE' && (
                   <span className="px-3 py-1.5 bg-trini-gold text-trini-black text-sm font-bold rounded-full flex items-center gap-1.5 shadow-md">
@@ -458,7 +485,7 @@ export default function ListingDetailPage() {
                 <span className={`px-3 py-1.5 ${getTypeBadge(listing.listingType)} text-sm font-bold rounded-full shadow-md`}>
                   {listing.listingType}
                 </span>
-                {!isOwner && session?.user?.id && (
+                {!isOwner && session?.user?.id && !isSold && (
                   <button
                     onClick={toggleWishlist}
                     disabled={togglingWishlist}
@@ -479,6 +506,11 @@ export default function ListingDetailPage() {
                   {listing.status.replace('_', ' ')}
                 </span>
               </div>
+              {isSold && (
+                <div className="mb-4 p-3 bg-caribbean-ocean/10 border border-caribbean-ocean/20 rounded-xl flex items-center gap-2 text-caribbean-ocean font-semibold">
+                  <ShoppingBag className="w-5 h-5" />This item has been sold and is no longer available.
+                </div>
+              )}
               <p className="text-gray-600 text-lg leading-relaxed">{listing.description}</p>
               {listing.swapTerms && (
                 <div className="mt-6 p-4 bg-tropical-purple/10 rounded-xl border border-tropical-purple/20">
@@ -496,27 +528,19 @@ export default function ListingDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-gray-50 rounded-xl">
                   <p className="text-sm text-gray-500 mb-1">Category</p>
-                  <p className="font-semibold text-gray-900 flex items-center gap-2">
-                    <Tag className="w-4 h-4 text-caribbean-teal" />{listing.category}
-                  </p>
+                  <p className="font-semibold text-gray-900 flex items-center gap-2"><Tag className="w-4 h-4 text-caribbean-teal" />{listing.category}</p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-xl">
                   <p className="text-sm text-gray-500 mb-1">Condition</p>
-                  <span className={`px-3 py-1 rounded-lg text-sm font-bold ${getConditionBadge(listing.condition)}`}>
-                    {listing.condition.replace('_', ' ')}
-                  </span>
+                  <span className={`px-3 py-1 rounded-lg text-sm font-bold ${getConditionBadge(listing.condition)}`}>{listing.condition.replace('_', ' ')}</span>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-xl">
                   <p className="text-sm text-gray-500 mb-1">Location</p>
-                  <p className="font-semibold text-gray-900 flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-trini-red" />{listing.location}
-                  </p>
+                  <p className="font-semibold text-gray-900 flex items-center gap-2"><MapPin className="w-4 h-4 text-trini-red" />{listing.location}</p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-xl">
                   <p className="text-sm text-gray-500 mb-1">Posted</p>
-                  <p className="font-semibold text-gray-900 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-tropical-orange" />{new Date(listing.createdAt).toLocaleDateString()}
-                  </p>
+                  <p className="font-semibold text-gray-900 flex items-center gap-2"><Clock className="w-4 h-4 text-tropical-orange" />{new Date(listing.createdAt).toLocaleDateString()}</p>
                 </div>
               </div>
             </div>
@@ -538,8 +562,7 @@ export default function ListingDetailPage() {
             {/* Seller Info */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <User className="w-5 h-5 text-caribbean-teal" />
-                Seller Information
+                <User className="w-5 h-5 text-caribbean-teal" />Seller Information
               </h3>
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-caribbean-teal to-caribbean-ocean flex items-center justify-center text-white font-bold text-lg">
@@ -561,79 +584,53 @@ export default function ListingDetailPage() {
               </div>
               {!isOwner && (
                 <div className="border-t border-gray-100 pt-4 space-y-2 text-sm">
-                  <div className="flex gap-2">
-                    <span className="text-gray-500 w-24 flex-shrink-0">Email:</span>
-                    <span className="text-gray-800 break-all">{listing.user.email}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="text-gray-500 w-24 flex-shrink-0">Phone:</span>
-                    <span className="text-gray-800">{listing.user.phone || 'Not provided'}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="text-gray-500 w-24 flex-shrink-0">WhatsApp:</span>
-                    <span className="text-gray-800">{listing.user.whatsapp || 'Not provided'}</span>
-                  </div>
+                  <div className="flex gap-2"><span className="text-gray-500 w-24 flex-shrink-0">Email:</span><span className="text-gray-800 break-all">{listing.user.email}</span></div>
+                  <div className="flex gap-2"><span className="text-gray-500 w-24 flex-shrink-0">Phone:</span><span className="text-gray-800">{listing.user.phone || 'Not provided'}</span></div>
+                  <div className="flex gap-2"><span className="text-gray-500 w-24 flex-shrink-0">WhatsApp:</span><span className="text-gray-800">{listing.user.whatsapp || 'Not provided'}</span></div>
                 </div>
               )}
             </div>
 
-            {/* Actions */}
+            {/* Owner Actions */}
             {isOwner && (
               <div className="bg-white rounded-2xl shadow-lg p-6 space-y-3">
                 <h3 className="font-bold text-gray-900 mb-4">Actions</h3>
 
                 {listing.status === 'PENDING_APPROVAL' && (
                   <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-800">
-                    <AlertCircle className="w-4 h-4 inline mr-2" />
-                    Awaiting admin approval. Your listing will be visible once approved.
+                    <AlertCircle className="w-4 h-4 inline mr-2" />Awaiting admin approval. Your listing will be visible once approved.
                   </div>
                 )}
 
                 {listing.status === 'PENDING_PAYMENT' && (
                   <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-800 mb-3">
-                    <AlertCircle className="w-4 h-4 inline mr-2" />
-                    Payment of 100 TTD required to publish this listing.
-                    {!paymentExpired && timeRemaining && (
-                      <p className="text-sm text-gray-600 mt-2">Payment request expires in: {timeRemaining}</p>
-                    )}
-                    {paymentExpired && (
-                      <p className="text-sm text-red-600 mt-2 font-semibold">This payment request has expired. Please create a new request.</p>
-                    )}
+                    <AlertCircle className="w-4 h-4 inline mr-2" />Payment of 100 TTD required to publish this listing.
+                    {!paymentExpired && timeRemaining && <p className="text-sm text-gray-600 mt-2">Payment request expires in: {timeRemaining}</p>}
+                    {paymentExpired && <p className="text-sm text-red-600 mt-2 font-semibold">This payment request has expired. Please create a new request.</p>}
                   </div>
                 )}
 
                 {listing.status === 'REJECTED' && (
                   <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
-                    <AlertCircle className="w-4 h-4 inline mr-2" />
-                    This listing was rejected by admin.
+                    <AlertCircle className="w-4 h-4 inline mr-2" />This listing was rejected by admin.
+                  </div>
+                )}
+
+                {isSold && (
+                  <div className="p-3 bg-caribbean-ocean/10 border border-caribbean-ocean/20 rounded-xl text-sm text-caribbean-ocean font-medium">
+                    <ShoppingBag className="w-4 h-4 inline mr-2" />This listing has been marked as sold.
                   </div>
                 )}
 
                 {listing.status === 'PENDING_PAYMENT' && (
-                  <button
-                    onClick={handlePayFee}
-                    disabled={paymentExpired}
-                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 font-semibold rounded-xl transition-transform ${paymentExpired ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-caribbean-green to-tropical-lime text-white hover:scale-105'}`}
-                  >
-                    <CreditCard className="w-5 h-5" />
-                    {paymentExpired ? 'Payment Expired' : 'Submit Payment (100 TTD)'}
+                  <button onClick={handlePayFee} disabled={paymentExpired} className={`w-full flex items-center justify-center gap-2 px-4 py-3 font-semibold rounded-xl transition-transform ${paymentExpired ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-caribbean-green to-tropical-lime text-white hover:scale-105'}`}>
+                    <CreditCard className="w-5 h-5" />{paymentExpired ? 'Payment Expired' : 'Submit Payment (100 TTD)'}
                   </button>
                 )}
 
                 {(listing.status === 'ACTIVE' || listing.status === 'EXPIRED') && listing.category === 'Free Items' && (
                   <div>
-                    <button
-                      onClick={async () => {
-                        try {
-                          await apiClient(`/api/listings/${listing.id}/renew`, { method: 'POST' });
-                          toast.success('Renewal request submitted for admin approval');
-                          loadListing();
-                        } catch (err: any) {
-                          toast.error(err.message || 'Failed to request renewal');
-                        }
-                      }}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-green to-tropical-lime text-white font-semibold rounded-xl hover:scale-105 transition-transform"
-                    >
+                    <button onClick={async () => { try { await apiClient(`/api/listings/${listing.id}/renew`, { method: 'POST' }); toast.success('Renewal request submitted for admin approval'); loadListing(); } catch (err: any) { toast.error(err.message || 'Failed to request renewal'); } }} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-green to-tropical-lime text-white font-semibold rounded-xl hover:scale-105 transition-transform">
                       <RefreshCcw className="w-5 h-5" />Renew Free
                     </button>
                     <p className="text-xs text-gray-500 mt-2 text-center">Renews this free listing for another 30 days after admin approval.</p>
@@ -642,18 +639,7 @@ export default function ListingDetailPage() {
 
                 {(listing.status === 'ACTIVE' || listing.status === 'EXPIRED') && listing.category !== 'Free Items' && (
                   <div>
-                    <button
-                      onClick={async () => {
-                        try {
-                          await apiClient(`/api/listings/${listing.id}/renew`, { method: 'POST' });
-                          toast.success('Renewal initiated. Please submit payment.');
-                          loadListing();
-                        } catch (err: any) {
-                          toast.error(err.message || 'Failed to initiate renewal');
-                        }
-                      }}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-trini-gold to-tropical-orange text-white font-semibold rounded-xl hover:scale-105 transition-transform"
-                    >
+                    <button onClick={async () => { try { await apiClient(`/api/listings/${listing.id}/renew`, { method: 'POST' }); toast.success('Renewal initiated. Please submit payment.'); loadListing(); } catch (err: any) { toast.error(err.message || 'Failed to initiate renewal'); } }} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-trini-gold to-tropical-orange text-white font-semibold rounded-xl hover:scale-105 transition-transform">
                       <RefreshCcw className="w-5 h-5" />Renew / Pay 100 TTD
                     </button>
                     <p className="text-xs text-gray-500 mt-2 text-center">Submit payment proof to activate or renew this listing for 90 days.</p>
@@ -666,18 +652,27 @@ export default function ListingDetailPage() {
                   </button>
                 )}
 
-                <button onClick={() => router.push(`/dashboard/listings/${listingId}/edit`)} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-caribbean-teal/10 text-caribbean-teal font-semibold rounded-xl hover:bg-caribbean-teal/20 transition">
-                  <Edit className="w-5 h-5" />Edit Listing
-                </button>
+                {!isSold && (
+                  <button onClick={() => router.push(`/dashboard/listings/${listingId}/edit`)} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-caribbean-teal/10 text-caribbean-teal font-semibold rounded-xl hover:bg-caribbean-teal/20 transition">
+                    <Edit className="w-5 h-5" />Edit Listing
+                  </button>
+                )}
 
                 <button onClick={handleDelete} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-trini-red/10 text-trini-red font-semibold rounded-xl hover:bg-trini-red/20 transition">
                   <Trash2 className="w-5 h-5" />Delete Listing
                 </button>
+
+                {!isSold && (listing.status === 'ACTIVE' || listing.status === 'PENDING_PAYMENT' || listing.status === 'PENDING_APPROVAL') && (
+                  <button onClick={handleMarkAsSold} disabled={markingAsSold} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-caribbean-ocean/10 text-caribbean-ocean font-semibold rounded-xl hover:bg-caribbean-ocean/20 transition disabled:opacity-50">
+                    {markingAsSold ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingBag className="w-5 h-5" />}
+                    {markingAsSold ? 'Marking...' : 'Mark as Sold'}
+                  </button>
+                )}
               </div>
             )}
 
-            {/* Contact Seller (not owner) */}
-            {!isOwner && listing.status === 'ACTIVE' && (
+            {/* Contact Seller (not owner, not sold) */}
+            {!isOwner && listing.status === 'ACTIVE' && !isSold && (
               <div className="bg-white rounded-2xl shadow-lg p-6 space-y-3">
                 <button onClick={handleContactSeller} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-ocean-blue text-white font-semibold rounded-xl hover:scale-105 transition-transform">
                   <MessageSquare className="w-5 h-5" />Contact Seller
@@ -687,6 +682,15 @@ export default function ListingDetailPage() {
                     <ArrowRightLeft className="w-5 h-5" />Propose Swap
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* Sold banner for non-owners */}
+            {!isOwner && isSold && (
+              <div className="bg-caribbean-ocean/10 border border-caribbean-ocean/20 rounded-2xl p-6 text-center">
+                <ShoppingBag className="w-10 h-10 text-caribbean-ocean mx-auto mb-2" />
+                <p className="font-bold text-caribbean-ocean text-lg">Item Sold</p>
+                <p className="text-gray-500 text-sm mt-1">This item is no longer available.</p>
               </div>
             )}
           </div>
@@ -703,9 +707,7 @@ export default function ListingDetailPage() {
                 {paymentStep === 'details' && 'Payment Details'}
                 {paymentStep === 'upload' && 'Upload Payment Proof'}
               </h3>
-              <button onClick={() => setShowPaymentModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
+              <button onClick={() => setShowPaymentModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition"><X className="w-5 h-5 text-gray-500" /></button>
             </div>
 
             {paymentStep === 'select' && (
@@ -713,39 +715,20 @@ export default function ListingDetailPage() {
                 <p className="text-gray-600 mb-6">Select your preferred payment method to activate your listing.</p>
                 <div className="space-y-3">
                   <button onClick={() => handleSelectPaymentMethod('PAYPAL')} disabled={processingPayment} className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition disabled:opacity-50">
-                    <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
-                      <span className="text-white font-bold text-lg">PP</span>
-                    </div>
-                    <div className="text-left">
-                      <p className="font-semibold text-gray-900">PayPal</p>
-                      <p className="text-sm text-gray-500">Fast & secure online payment</p>
-                    </div>
+                    <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center"><span className="text-white font-bold text-lg">PP</span></div>
+                    <div className="text-left"><p className="font-semibold text-gray-900">PayPal</p><p className="text-sm text-gray-500">Fast & secure online payment</p></div>
                     <ExternalLink className="w-5 h-5 text-gray-400 ml-auto" />
                   </button>
                   <button onClick={() => handleSelectPaymentMethod('ONLINE_BANK')} disabled={processingPayment} className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-xl hover:border-caribbean-teal hover:bg-caribbean-teal/10 transition disabled:opacity-50">
-                    <div className="w-12 h-12 bg-caribbean-teal rounded-xl flex items-center justify-center">
-                      <Building className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-semibold text-gray-900">Online Bank Transfer</p>
-                      <p className="text-sm text-gray-500">Transfer via internet banking</p>
-                    </div>
+                    <div className="w-12 h-12 bg-caribbean-teal rounded-xl flex items-center justify-center"><Building className="w-6 h-6 text-white" /></div>
+                    <div className="text-left"><p className="font-semibold text-gray-900">Online Bank Transfer</p><p className="text-sm text-gray-500">Transfer via internet banking</p></div>
                   </button>
                   <button onClick={() => handleSelectPaymentMethod('BANK_DEPOSIT')} disabled={processingPayment} className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-xl hover:border-trini-gold hover:bg-trini-gold/10 transition disabled:opacity-50">
-                    <div className="w-12 h-12 bg-trini-gold rounded-xl flex items-center justify-center">
-                      <Landmark className="w-6 h-6 text-trini-black" />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-semibold text-gray-900">Bank Deposit</p>
-                      <p className="text-sm text-gray-500">Visit branch & deposit cash</p>
-                    </div>
+                    <div className="w-12 h-12 bg-trini-gold rounded-xl flex items-center justify-center"><Landmark className="w-6 h-6 text-trini-black" /></div>
+                    <div className="text-left"><p className="font-semibold text-gray-900">Bank Deposit</p><p className="text-sm text-gray-500">Visit branch & deposit cash</p></div>
                   </button>
                 </div>
-                {processingPayment && (
-                  <div className="flex items-center justify-center gap-2 mt-4 text-gray-600">
-                    <Loader2 className="w-5 h-5 animate-spin" />Processing...
-                  </div>
-                )}
+                {processingPayment && <div className="flex items-center justify-center gap-2 mt-4 text-gray-600"><Loader2 className="w-5 h-5 animate-spin" />Processing...</div>}
               </>
             )}
 
@@ -758,37 +741,19 @@ export default function ListingDetailPage() {
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4 mb-4">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500">Payment Reference</p>
-                      <p className="font-mono font-bold text-lg text-gray-900">{paymentInfo.reference}</p>
-                    </div>
-                    <button onClick={() => copyToClipboard(paymentInfo.reference, 'Reference')} className="p-2 hover:bg-gray-200 rounded-lg transition">
-                      <Copy className="w-5 h-5 text-gray-600" />
-                    </button>
+                    <div><p className="text-sm text-gray-500">Payment Reference</p><p className="font-mono font-bold text-lg text-gray-900">{paymentInfo.reference}</p></div>
+                    <button onClick={() => copyToClipboard(paymentInfo.reference, 'Reference')} className="p-2 hover:bg-gray-200 rounded-lg transition"><Copy className="w-5 h-5 text-gray-600" /></button>
                   </div>
                 </div>
-
                 {paymentInfo.method === 'PAYPAL' ? (
-  <>
-    <p className="text-gray-600 mb-4">
-      Click the button below to complete payment via PayPal.
-    </p>
-
-    <a
-      href={`https://www.paypal.com/cgi-bin/webscr?...`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition mb-4"
-    >
-      Pay with PayPal
-      <ExternalLink className="w-5 h-5" />
-    </a>
-
-    <p className="text-sm text-gray-500 text-center">
-      After payment, your listing will be activated automatically.
-    </p>
-  </>
-) : (
+                  <>
+                    <p className="text-gray-600 mb-4">Click the button below to complete payment via PayPal.</p>
+                    <a href={`https://www.paypal.com/cgi-bin/webscr?...`} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition mb-4">
+                      Pay with PayPal<ExternalLink className="w-5 h-5" />
+                    </a>
+                    <p className="text-sm text-gray-500 text-center">After payment, your listing will be activated automatically.</p>
+                  </>
+                ) : (
                   <>
                     {paymentInfo.bankDetails && (
                       <div className="space-y-3 mb-4">
@@ -798,13 +763,8 @@ export default function ListingDetailPage() {
                           { label: 'Account Number', value: paymentInfo.bankDetails.accountNumber },
                         ].map(({ label, value }) => (
                           <div key={label} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div>
-                              <p className="text-sm text-gray-500">{label}</p>
-                              <p className="font-semibold text-gray-900">{value}</p>
-                            </div>
-                            <button onClick={() => copyToClipboard(value, label)} className="p-2 hover:bg-gray-200 rounded-lg transition">
-                              <Copy className="w-4 h-4 text-gray-600" />
-                            </button>
+                            <div><p className="text-sm text-gray-500">{label}</p><p className="font-semibold text-gray-900">{value}</p></div>
+                            <button onClick={() => copyToClipboard(value, label)} className="p-2 hover:bg-gray-200 rounded-lg transition"><Copy className="w-4 h-4 text-gray-600" /></button>
                           </div>
                         ))}
                       </div>
@@ -819,10 +779,7 @@ export default function ListingDetailPage() {
                     </label>
                   </>
                 )}
-
-                <button onClick={() => { setPaymentStep('select'); setPaymentInfo(null); setSelectedPaymentMethod(null); }} className="w-full mt-4 px-4 py-2 text-gray-600 hover:text-gray-900 transition text-sm">
-                  ← Choose different payment method
-                </button>
+                <button onClick={() => { setPaymentStep('select'); setPaymentInfo(null); setSelectedPaymentMethod(null); }} className="w-full mt-4 px-4 py-2 text-gray-600 hover:text-gray-900 transition text-sm">← Choose different payment method</button>
               </>
             )}
           </div>
@@ -835,18 +792,10 @@ export default function ListingDetailPage() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-900">Contact Seller</h3>
-              <button onClick={() => setShowMessageModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
+              <button onClick={() => setShowMessageModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition"><X className="w-5 h-5 text-gray-500" /></button>
             </div>
-            <p className="text-gray-600 mb-4">Send a message to {listing?.user.name} about "{listing?.title}"</p>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Hi! I'm interested in this item..."
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-teal resize-none"
-              rows={4}
-            />
+            <p className="text-gray-600 mb-4">Send a message to {listing?.user.name} about &quot;{listing?.title}&quot;</p>
+            <textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Hi! I'm interested in this item..." className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-teal resize-none" rows={4} />
             <div className="flex gap-3 mt-4">
               <button onClick={() => setShowMessageModal(false)} className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">Cancel</button>
               <button onClick={handleSendMessage} disabled={sendingMessage || !message.trim()} className="flex-1 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-ocean-blue text-white font-semibold rounded-xl hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
@@ -863,18 +812,14 @@ export default function ListingDetailPage() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-900">Propose a Swap</h3>
-              <button onClick={() => setShowSwapModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
+              <button onClick={() => setShowSwapModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition"><X className="w-5 h-5 text-gray-500" /></button>
             </div>
-            <p className="text-gray-600 mb-4">Select one of your listings to offer in exchange for "{listing?.title}"</p>
+            <p className="text-gray-600 mb-4">Select one of your listings to offer in exchange for &quot;{listing?.title}&quot;</p>
             {userListings.length === 0 ? (
               <div className="text-center py-8">
                 <ArrowRightLeft className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 mb-4">You don't have any active swap listings</p>
-                <Link href="/dashboard/listings/create" className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-xl hover:opacity-90 transition">
-                  Create a Listing
-                </Link>
+                <p className="text-gray-500 mb-4">You don&apos;t have any active swap listings</p>
+                <Link href="/dashboard/listings/create" className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-tropical-purple to-tropical-pink text-white font-semibold rounded-xl hover:opacity-90 transition">Create a Listing</Link>
               </div>
             ) : (
               <>
@@ -885,10 +830,7 @@ export default function ListingDetailPage() {
                       <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                         {item.images[0] ? <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">📦</div>}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 truncate">{item.title}</p>
-                        <p className="text-sm text-gray-500">{item.listingType}</p>
-                      </div>
+                      <div className="flex-1 min-w-0"><p className="font-semibold text-gray-900 truncate">{item.title}</p><p className="text-sm text-gray-500">{item.listingType}</p></div>
                       {selectedListing === item.id && <Check className="w-6 h-6 text-tropical-purple flex-shrink-0" />}
                     </label>
                   ))}
