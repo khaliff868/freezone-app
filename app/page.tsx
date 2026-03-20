@@ -210,7 +210,7 @@ export default async function HomePage() {
               </div>
             </div>
             <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-4">
-              Freezone <span className="text-trini-gold">Swap</span> or <span className="text-tropical-orange">Sell</span>
+              Freezone <span className="text-tropical-orange">Sell</span>/<span className="text-trini-gold">Swap</span> or <span className="text-trini-gold">Free</span>
             </h1>
             <p className="text-xl text-white/80 max-w-2xl mx-auto mb-8">
               Trinidad & Tobago&apos;s premier marketplace for swapping and selling. Join our community today! 🇹🇹
@@ -497,7 +497,7 @@ export default async function HomePage() {
       {/* Footer */}
       <footer className="bg-gradient-to-r from-trini-black via-trini-red to-trini-black py-8">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-white/80 text-sm">© 2026 Freezone Swap or Sell. Made with <span className="text-trini-red">❤️</span> in Trinidad & Tobago 🇹🇹</p>
+          <p className="text-white/80 text-sm">© 2026 Freezone Sell/Swap or Free. Made with <span className="text-trini-red">❤️</span> in Trinidad & Tobago 🇹🇹</p>
         </div>
       </footer>
     </div>
