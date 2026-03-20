@@ -1,5 +1,4 @@
 'use client';
-
 import { createContext, useContext, useEffect, useState } from 'react';
 
 type Theme = 'dark' | 'light';
@@ -12,7 +11,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('light'); // ← default light
+  const [theme, setThemeState] = useState<Theme>('light');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -21,15 +20,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (stored === 'light' || stored === 'dark') {
       setThemeState(stored);
       document.documentElement.classList.toggle('dark', stored === 'dark');
+      document.documentElement.style.colorScheme = stored;
     } else {
-      // Default to light mode
-      document.documentElement.classList.remove('dark'); // ← remove dark
+      // Default to light mode — ignore system preference
+      document.documentElement.classList.remove('dark');
+      document.documentElement.style.colorScheme = 'light';
     }
   }, []);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
     localStorage.setItem('theme', newTheme);
+    document.documentElement.style.colorScheme = newTheme;
     if (newTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -37,9 +39,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Prevent flash — render light by default before mount
   if (!mounted) {
-    return <>{children}</>; // ← no dark class wrapper
+    return <>{children}</>;
   }
 
   return (
