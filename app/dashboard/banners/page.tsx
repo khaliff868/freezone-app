@@ -573,4 +573,4 @@ export default function UserBannersPage() {
       </div>
     </div>
   );
-} there is no status showing not even for the title from payment add to renew no actions are showing, only the stats are showing for the new banner i created
+}
