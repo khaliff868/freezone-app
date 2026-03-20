@@ -14,15 +14,15 @@ export function Navbar() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
 
+  // Close mobile menu on route change
   useEffect(() => {
-    if (session?.user?.id) {
-      fetchNotifications();
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [session]);
+    setIsOpen(false);
+    setShowNotifications(false);
+  }, [pathname]);
 
+  // Close mobile menu on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -36,6 +36,29 @@ export function Navbar() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
+
+  // Close notifications on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [session]);
 
   const fetchNotifications = async () => {
     try {
@@ -73,47 +96,47 @@ export function Navbar() {
       <div className="flex items-center justify-between w-full h-16 px-4">
 
         {/* Logo + Brand */}
-        <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+        <Link href="/" className="flex items-center gap-2 flex-shrink-0" onClick={() => { setIsOpen(false); setShowNotifications(false); }}>
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-trini-red to-tropical-orange flex items-center justify-center flex-shrink-0">
             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <span className="text-xl font-bold hidden sm:block whitespace-nowrap">
-          <span className="text-white">Freezone </span>
-          <span className="text-trini-gold">Sell</span>
-          <span className="text-white">/</span>
-          <span className="text-trini-gold">Swap</span>
-          <span className="text-white"> or Free</span>
-        </span>
+            <span className="text-white">Freezone </span>
+            <span className="text-trini-gold">Sell</span>
+            <span className="text-white">/</span>
+            <span className="text-trini-gold">Swap</span>
+            <span className="text-white"> or Free</span>
+          </span>
         </Link>
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-1 flex-nowrap whitespace-nowrap">
-          <Link href="/" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname === '/' ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+          <Link href="/" onClick={() => setShowNotifications(false)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname === '/' ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
             <Home className="w-4 h-4 flex-shrink-0" /> Home
           </Link>
-          <Link href="/browse" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname === '/browse' || pathname?.startsWith('/browse') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+          <Link href="/browse" onClick={() => setShowNotifications(false)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname === '/browse' || pathname?.startsWith('/browse') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
             <Search className="w-4 h-4 flex-shrink-0" /> Browse
           </Link>
-          <Link href="/dashboard" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname === '/dashboard' || (pathname?.startsWith('/dashboard') && !pathname?.includes('/messages') && !pathname?.includes('/swaps') && !pathname?.includes('/wishlist') && !pathname?.includes('/settings')) ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+          <Link href="/dashboard" onClick={() => setShowNotifications(false)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname === '/dashboard' || (pathname?.startsWith('/dashboard') && !pathname?.includes('/messages') && !pathname?.includes('/swaps') && !pathname?.includes('/wishlist') && !pathname?.includes('/settings')) ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
             <Package className="w-4 h-4 flex-shrink-0" /> Listings
           </Link>
-          <Link href="/dashboard/messages" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname?.startsWith('/dashboard/messages') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+          <Link href="/dashboard/messages" onClick={() => setShowNotifications(false)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname?.startsWith('/dashboard/messages') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
             <MessageSquare className="w-4 h-4 flex-shrink-0" /> Messages
           </Link>
-          <Link href="/dashboard/swaps" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname?.startsWith('/dashboard/swaps') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+          <Link href="/dashboard/swaps" onClick={() => setShowNotifications(false)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname?.startsWith('/dashboard/swaps') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
             <RefreshCw className="w-4 h-4 flex-shrink-0" /> Swaps
           </Link>
-          <Link href="/dashboard/wishlist" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname?.startsWith('/dashboard/wishlist') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+          <Link href="/dashboard/wishlist" onClick={() => setShowNotifications(false)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname?.startsWith('/dashboard/wishlist') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
             <Heart className="w-4 h-4 flex-shrink-0" /> Wishlist
           </Link>
-          <Link href="/dashboard/settings" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname?.startsWith('/dashboard/settings') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+          <Link href="/dashboard/settings" onClick={() => setShowNotifications(false)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname?.startsWith('/dashboard/settings') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
             <Settings className="w-4 h-4 flex-shrink-0" /> Settings
           </Link>
-          <Link href="/contact" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname === '/contact' || pathname?.startsWith('/contact') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+          <Link href="/contact" onClick={() => setShowNotifications(false)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname === '/contact' || pathname?.startsWith('/contact') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
             <Mail className="w-4 h-4 flex-shrink-0" /> Contact Us
           </Link>
           {isAdmin && (
-            <Link href="/admin" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname?.startsWith('/admin') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+            <Link href="/admin" onClick={() => setShowNotifications(false)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname?.startsWith('/admin') ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
               <Shield className="w-4 h-4 flex-shrink-0" /> Admin
             </Link>
           )}
@@ -121,7 +144,8 @@ export function Navbar() {
 
         {/* Right: Bell + User + Logout + Hamburger */}
         <div className="flex items-center gap-3 flex-shrink-0">
-          <div className="relative">
+          {/* Notification Bell */}
+          <div className="relative" ref={notifRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition"
@@ -217,7 +241,7 @@ export function Navbar() {
         <Link href="/dashboard/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 hover:text-trini-gold transition-colors">
           <Settings className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Settings
         </Link>
-        <Link href="/contact" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+        <Link href="/contact" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 hover:text-trini-gold transition-colors">
           <Mail className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Contact Us
         </Link>
         {isAdmin && (
