@@ -8,30 +8,22 @@
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
- 
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
- 
     --primary: 0 84% 50%;
     --primary-foreground: 0 0% 100%;
- 
     --secondary: 45 100% 51%;
     --secondary-foreground: 0 0% 10%;
- 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
- 
     --accent: 174 100% 29%;
     --accent-foreground: 0 0% 100%;
- 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 0 84% 50%;
- 
     --radius: 0.5rem;
-    /* Custom Caribbean colors */
     --trini-red: 0 84% 50%;
     --trini-gold: 45 100% 51%;
     --trini-black: 0 0% 10%;
@@ -46,28 +38,20 @@
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
- 
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
- 
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
- 
     --primary: 0 84% 60%;
     --primary-foreground: 0 0% 100%;
- 
     --secondary: 45 100% 51%;
     --secondary-foreground: 0 0% 10%;
- 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
- 
     --accent: 174 100% 35%;
     --accent-foreground: 0 0% 100%;
- 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
- 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 0 84% 60%;
@@ -78,24 +62,23 @@
   * {
     @apply border-border;
   }
-  /* Force white background in light mode, prevent system dark mode override */
-  html, body {
+  html {
     background-color: #ffffff;
-    color: #0f172a;
+    color-scheme: light;
   }
-  .dark html,
-  .dark body,
-  html.dark,
-  body.dark {
-    background-color: hsl(222.2 84% 4.9%);
-    color: hsl(210 40% 98%);
+  html.dark {
+    background-color: hsl(222.2, 84%, 4.9%);
+    color-scheme: dark;
   }
   body {
     @apply bg-background text-foreground;
+    background-color: #ffffff;
+  }
+  html.dark body {
+    background-color: hsl(222.2, 84%, 4.9%);
   }
 }
 
-/* Custom gradient backgrounds */
 .gradient-trini {
   background: linear-gradient(135deg, hsl(0 84% 50%) 0%, hsl(0 0% 10%) 50%, hsl(0 84% 50%) 100%);
 }
@@ -108,7 +91,6 @@
 .gradient-tropical {
   background: linear-gradient(135deg, hsl(142 71% 45%) 0%, hsl(174 100% 29%) 50%, hsl(199 89% 48%) 100%);
 }
-/* Card hover effects */
 .card-hover {
   transition: all 0.3s ease;
 }
@@ -116,7 +98,6 @@
   transform: translateY(-4px);
   box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
-/* Animated gradient text */
 .gradient-text {
   background: linear-gradient(90deg, hsl(0 84% 50%), hsl(45 100% 51%), hsl(0 84% 50%));
   background-size: 200% auto;
@@ -130,15 +111,10 @@
     background-position: 200% center;
   }
 }
-/* Pulse animation for badges */
 .pulse-badge {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 @keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
