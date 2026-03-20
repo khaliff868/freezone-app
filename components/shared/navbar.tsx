@@ -78,13 +78,12 @@ export function Navbar() {
             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <span className="text-xl font-bold hidden sm:block whitespace-nowrap">
-            <span className="text-white">Freezone </span>
-            <span className="text-tropical-orange">Sell</span>
-            <span className="text-white">/</span>
-            <span className="text-trini-gold">Swap</span>
-            <span className="text-white"> or </span>
-            <span className="text-trini-gold">Free</span>
-          </span>
+          <span className="text-white">Freezone </span>
+          <span className="text-trini-gold">Sell</span>
+          <span className="text-white">/</span>
+          <span className="text-trini-gold">Swap</span>
+          <span className="text-white"> or Free</span>
+        </span>
         </Link>
 
         {/* Desktop Navigation */}
