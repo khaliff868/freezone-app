@@ -9,7 +9,6 @@ import { Sparkles, TrendingUp, RefreshCcw, ShoppingBag, ArrowRight, MapPin, Tag,
 import BannerAd from '@/components/shared/banner-ad';
 import AdBanner from '@/components/shared/ad-banner';
 
-// Category data for icons and colors
 const CATEGORIES_DATA: Record<string, { emoji: string; color: string }> = {
   'Swaps': { emoji: '🔄', color: 'from-tropical-purple to-caribbean-ocean' },
   'Free Items': { emoji: '🎁', color: 'from-caribbean-green to-tropical-lime' },
@@ -35,7 +34,6 @@ const CATEGORIES_DATA: Record<string, { emoji: string; color: string }> = {
   'Other': { emoji: '📦', color: 'from-gray-500 to-gray-600' },
 };
 
-// Type for listings
 type ListingWithUser = {
   id: string;
   title: string;
@@ -58,51 +56,48 @@ export default async function HomePage() {
     redirect('/auth/login');
   }
 
-  // Fetch all active listings with user info in one query
+  // Fetch enough listings for all sections
   const allListings = await prisma.listing.findMany({
     where: { status: 'ACTIVE' },
     include: { user: { select: { id: true, name: true, tier: true, verified: true } } },
     orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
-    take: 50, // Get enough for all sections
+    take: 80,
   });
 
-  // Stats - sequential to avoid connection pool exhaustion
   const totalListings = allListings.length > 0 ? await prisma.listing.count({ where: { status: 'ACTIVE' } }) : 0;
   const totalUsers = await prisma.user.count();
   const totalSwaps = await prisma.swapOffer.count({ where: { status: 'COMPLETED' } });
 
-  // Derive sections from the fetched listings
-  const featuredListings = allListings.filter(l => l.featured).slice(0, 6);
-  // Fill with newest if needed
-  if (featuredListings.length < 6) {
+  // Featured Listings — 8 items
+  const featuredListings = allListings.filter(l => l.featured).slice(0, 8);
+  if (featuredListings.length < 8) {
     const neededIds = new Set(featuredListings.map(l => l.id));
-    const additional = allListings.filter(l => !neededIds.has(l.id)).slice(0, 6 - featuredListings.length);
+    const additional = allListings.filter(l => !neededIds.has(l.id)).slice(0, 8 - featuredListings.length);
     featuredListings.push(...additional);
   }
 
-  const latestListings = allListings.slice(0, 8);
+  // Latest Listings — 10 items
+  const latestListings = allListings.slice(0, 10);
 
-  // Swap listings
+  // Swap Listings — 10 items
   const swapListings = allListings
     .filter(l => l.listingType === 'SWAP' || l.listingType === 'BOTH')
-    .slice(0, 6);
-  // Fill with others if needed
-  if (swapListings.length < 6) {
+    .slice(0, 10);
+  if (swapListings.length < 10) {
     const swapIds = new Set(swapListings.map(l => l.id));
-    const additional = allListings.filter(l => !swapIds.has(l.id)).slice(0, 6 - swapListings.length);
+    const additional = allListings.filter(l => !swapIds.has(l.id)).slice(0, 10 - swapListings.length);
     swapListings.push(...additional);
   }
 
-  // Trending by views
+  // Trending by views — 10 items
   const trendingListings = [...allListings]
     .sort((a, b) => (b.views || 0) - (a.views || 0))
-    .slice(0, 6);
+    .slice(0, 10);
 
-  // Recommended - shuffle
+  // Recommended — shuffle, 10 items
   const shuffled = [...allListings].sort(() => Math.random() - 0.5);
-  const recommendedListings = shuffled.slice(0, 6);
+  const recommendedListings = shuffled.slice(0, 10);
 
-  // Category counts from fetched listings
   const categoryMap: Record<string, number> = {};
   allListings.forEach(l => {
     categoryMap[l.category] = (categoryMap[l.category] || 0) + 1;
@@ -117,7 +112,6 @@ export default async function HomePage() {
       color: CATEGORIES_DATA[name]?.color || 'from-gray-500 to-gray-600',
     }));
 
-  // Recent activity (simulated from listings)
   const recentActivity = allListings.slice(0, 6).map(l => ({
     type: 'new_listing',
     message: `New listing posted in ${l.category}`,
@@ -153,7 +147,6 @@ export default async function HomePage() {
     return `${days}d ago`;
   };
 
-  // Listing Card Component (reusable)
   const ListingCard = ({ listing, showSwapButton = false }: { listing: ListingWithUser; showSwapButton?: boolean }) => (
     <Link
       href={`/dashboard/listings/${listing.id}`}
@@ -259,7 +252,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Ad Banner - Top (Advertise with Freezone) */}
+      {/* Ad Banner - Top */}
       <section className="pt-12 pb-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AdBanner position="top" type="horizontal" />
@@ -273,15 +266,14 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Main Content Grid with Sidebars */}
+      {/* Main Content Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Mobile-only: Left sidebar ad banner collapses to horizontal */}
         <div className="lg:hidden mb-6">
           <AdBanner position="left" type="horizontal" />
         </div>
 
         <div className="flex gap-8">
-          {/* Left Sidebar - Ad Banner (desktop only) */}
+          {/* Left Sidebar */}
           <div className="w-48 flex-shrink-0 hidden lg:block">
             <div className="sticky top-24 space-y-6">
               <AdBanner position="left" type="vertical" />
@@ -291,7 +283,7 @@ export default async function HomePage() {
           {/* Main Content */}
           <div className="flex-1 min-w-0">
 
-            {/* Featured Listings Section */}
+            {/* Featured Listings — 8 items */}
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -303,16 +295,14 @@ export default async function HomePage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">Top picks from our marketplace</p>
                   </div>
                 </div>
-                <Link href="/browse" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">
-                  View All<ArrowRight className="w-4 h-4" />
-                </Link>
+                <Link href="/browse" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">View All<ArrowRight className="w-4 h-4" /></Link>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {featuredListings.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
               </div>
             </section>
 
-            {/* Latest Listings Section */}
+            {/* Latest Listings — 10 items */}
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -324,16 +314,14 @@ export default async function HomePage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">Fresh items just posted</p>
                   </div>
                 </div>
-                <Link href="/browse?sort=newest" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">
-                  View All<ArrowRight className="w-4 h-4" />
-                </Link>
+                <Link href="/browse?sort=newest" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">View All<ArrowRight className="w-4 h-4" /></Link>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {latestListings.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
               </div>
             </section>
 
-            {/* Ad Banner - Middle (Advertise with Freezone) */}
+            {/* Ad Banner - Middle */}
             <section className="mb-12">
               <AdBanner position="middle" type="horizontal" />
             </section>
@@ -343,7 +331,7 @@ export default async function HomePage() {
               <BannerAd placement="homepage_mid" />
             </section>
 
-            {/* Suggested Swap Matches Section */}
+            {/* Suggested Swap Matches — 10 items */}
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -355,16 +343,14 @@ export default async function HomePage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">Items available for swapping</p>
                   </div>
                 </div>
-                <Link href="/browse?type=SWAP" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">
-                  View All<ArrowRight className="w-4 h-4" />
-                </Link>
+                <Link href="/browse?type=SWAP" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">View All<ArrowRight className="w-4 h-4" /></Link>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {swapListings.map((listing) => <ListingCard key={listing.id} listing={listing} showSwapButton={true} />)}
               </div>
             </section>
 
-            {/* Trending Listings Section */}
+            {/* Trending Listings — 10 items */}
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -376,16 +362,14 @@ export default async function HomePage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">Most viewed items right now</p>
                   </div>
                 </div>
-                <Link href="/browse?sort=popular" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">
-                  View All<ArrowRight className="w-4 h-4" />
-                </Link>
+                <Link href="/browse?sort=popular" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">View All<ArrowRight className="w-4 h-4" /></Link>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {trendingListings.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
               </div>
             </section>
 
-            {/* Recommended For You Section */}
+            {/* Recommended For You — 10 items */}
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -397,9 +381,7 @@ export default async function HomePage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">Discover items you might like</p>
                   </div>
                 </div>
-                <Link href="/browse" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">
-                  View All<ArrowRight className="w-4 h-4" />
-                </Link>
+                <Link href="/browse" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">View All<ArrowRight className="w-4 h-4" /></Link>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {recommendedListings.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
@@ -409,13 +391,8 @@ export default async function HomePage() {
 
           {/* Right Sidebar */}
           <div className="w-80 flex-shrink-0 hidden xl:block space-y-6">
-            {/* Ad Banner - Right Sidebar (Advertise with Freezone) */}
             <AdBanner position="right" type="vertical" />
-
-            {/* Banner Ad - Sidebar */}
             <BannerAd placement="homepage_sidebar" />
-
-            {/* Popular Categories Panel */}
             <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
               <div className="flex items-center gap-2 mb-4">
                 <Grid3X3 className="w-5 h-5 text-trini-gold" />
@@ -423,27 +400,17 @@ export default async function HomePage() {
               </div>
               <div className="space-y-2">
                 {popularCategories.map((cat) => (
-                  <Link
-                    key={cat.name}
-                    href={`/browse?category=${encodeURIComponent(cat.name)}`}
-                    className="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition group"
-                  >
+                  <Link key={cat.name} href={`/browse?category=${encodeURIComponent(cat.name)}`} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition group">
                     <div className="flex items-center gap-3">
-                      <span className={`w-8 h-8 bg-gradient-to-br ${cat.color} rounded-lg flex items-center justify-center text-sm`}>
-                        {cat.emoji}
-                      </span>
+                      <span className={`w-8 h-8 bg-gradient-to-br ${cat.color} rounded-lg flex items-center justify-center text-sm`}>{cat.emoji}</span>
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-trini-red transition">{cat.name}</span>
                     </div>
                     <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-white/10 rounded-full text-gray-600 dark:text-gray-300">{cat.count}</span>
                   </Link>
                 ))}
               </div>
-              <Link href="/browse" className="mt-4 block text-center text-sm text-trini-red hover:text-trini-red/80 font-semibold">
-                View All Categories →
-              </Link>
+              <Link href="/browse" className="mt-4 block text-center text-sm text-trini-red hover:text-trini-red/80 font-semibold">View All Categories →</Link>
             </div>
-
-            {/* Recent Marketplace Activity Panel */}
             <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
               <div className="flex items-center gap-2 mb-4">
                 <Activity className="w-5 h-5 text-caribbean-teal" />
@@ -463,29 +430,23 @@ export default async function HomePage() {
                 ))}
               </div>
             </div>
-
-            {/* Banner Ad - Sidebar Bottom */}
             <BannerAd placement="homepage_sidebar_bottom" />
           </div>
         </div>
       </div>
 
-      {/* Mobile-only: Right sidebar ad banner collapses to horizontal */}
+      {/* Mobile right sidebar */}
       <div className="xl:hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
         <AdBanner position="right" type="horizontal" />
       </div>
 
-      {/* Browse Categories Section (Full Width) */}
+      {/* Browse Categories */}
       <section className="py-16 bg-gray-100 dark:bg-gray-800/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">Browse Categories</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {Object.entries(CATEGORIES_DATA).map(([name, data]) => (
-              <Link
-                key={name}
-                href={`/browse?category=${encodeURIComponent(name)}`}
-                className={`bg-gradient-to-br ${data.color} p-4 rounded-2xl text-center cursor-pointer hover:scale-105 transition-transform shadow-lg`}
-              >
+              <Link key={name} href={`/browse?category=${encodeURIComponent(name)}`} className={`bg-gradient-to-br ${data.color} p-4 rounded-2xl text-center cursor-pointer hover:scale-105 transition-transform shadow-lg`}>
                 <span className="text-3xl mb-1 block">{data.emoji}</span>
                 <span className="text-white font-semibold text-sm line-clamp-2">{name}</span>
               </Link>
