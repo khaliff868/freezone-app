@@ -77,7 +77,7 @@ export function Navbar() {
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-trini-red to-tropical-orange flex items-center justify-center flex-shrink-0">
             <Sparkles className="w-6 h-6 text-white" />
           </div>
-          <span className="text-xl font-bold text-white hidden sm:block whitespace-nowrap">Freezone Swap or Sell</span>
+          <span className="text-xl font-bold hidden sm:block whitespace-nowrap"><span className="text-white">Freezone </span><span className="text-tropical-orange">Sell</span><span className="text-white">/</span><span className="text-trini-gold">Swap</span><span className="text-white"> or </span><span className="text-trini-gold">Free</span></span>
         </Link>
 
         {/* Center Section: Navigation Tabs - Desktop Only */}
