@@ -23,7 +23,6 @@ export function Navbar() {
     }
   }, [session]);
 
-  // Close menu on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -72,15 +71,23 @@ export function Navbar() {
   return (
     <nav className="bg-gradient-to-r from-trini-red via-trini-black to-trini-red sticky top-0 z-50 shadow-lg w-full relative" ref={menuRef}>
       <div className="flex items-center justify-between w-full h-16 px-4">
-        {/* Left Section: Logo + Brand Name */}
+
+        {/* Logo + Brand */}
         <Link href="/" className="flex items-center gap-2 flex-shrink-0">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-trini-red to-tropical-orange flex items-center justify-center flex-shrink-0">
             <Sparkles className="w-6 h-6 text-white" />
           </div>
-          <span className="text-xl font-bold hidden sm:block whitespace-nowrap"><span className="text-white">Freezone </span><span className="text-tropical-orange">Sell</span><span className="text-white">/</span><span className="text-trini-gold">Swap</span><span className="text-white"> or </span><span className="text-trini-gold">Free</span></span>
+          <span className="text-xl font-bold hidden sm:block whitespace-nowrap">
+            <span className="text-white">Freezone </span>
+            <span className="text-tropical-orange">Sell</span>
+            <span className="text-white">/</span>
+            <span className="text-trini-gold">Swap</span>
+            <span className="text-white"> or </span>
+            <span className="text-trini-gold">Free</span>
+          </span>
         </Link>
 
-        {/* Center Section: Navigation Tabs - Desktop Only */}
+        {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-1 flex-nowrap whitespace-nowrap">
           <Link href="/" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname === '/' ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
             <Home className="w-4 h-4 flex-shrink-0" /> Home
@@ -113,9 +120,8 @@ export function Navbar() {
           )}
         </div>
 
-        {/* Right Section: Notifications + User + Logout + Hamburger */}
+        {/* Right: Bell + User + Logout + Hamburger */}
         <div className="flex items-center gap-3 flex-shrink-0">
-          {/* Notification Bell */}
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
@@ -175,7 +181,6 @@ export function Navbar() {
             <span className="hidden sm:inline">Logout</span>
           </button>
 
-          {/* Hamburger Button - Mobile Only */}
           <button
             className="md:hidden text-white p-2 hover:bg-white/10 rounded-lg transition"
             onClick={() => setIsOpen(!isOpen)}
@@ -186,38 +191,38 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Dropdown Menu with smooth animation */}
+      {/* Mobile Dropdown */}
       <div
         className={`absolute top-full left-0 w-full bg-red-700 flex flex-col px-4 md:hidden z-50 overflow-hidden transition-all duration-200 ease-in-out ${
           isOpen ? 'opacity-100 max-h-screen py-4' : 'opacity-0 max-h-0 py-0 pointer-events-none'
         }`}
       >
-        <Link href="/" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+        <Link href="/" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 hover:text-trini-gold transition-colors">
           <Home className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Home
         </Link>
-        <Link href="/browse" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+        <Link href="/browse" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 hover:text-trini-gold transition-colors">
           <Search className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Browse
         </Link>
-        <Link href="/dashboard" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+        <Link href="/dashboard" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 hover:text-trini-gold transition-colors">
           <Package className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Listings
         </Link>
-        <Link href="/dashboard/messages" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+        <Link href="/dashboard/messages" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 hover:text-trini-gold transition-colors">
           <MessageSquare className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Messages
         </Link>
-        <Link href="/dashboard/swaps" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+        <Link href="/dashboard/swaps" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 hover:text-trini-gold transition-colors">
           <RefreshCw className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Swaps
         </Link>
-        <Link href="/dashboard/wishlist" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+        <Link href="/dashboard/wishlist" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 hover:text-trini-gold transition-colors">
           <Heart className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Wishlist
         </Link>
-        <Link href="/dashboard/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+        <Link href="/dashboard/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 hover:text-trini-gold transition-colors">
           <Settings className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Settings
         </Link>
         <Link href="/contact" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
           <Mail className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Contact Us
         </Link>
         {isAdmin && (
-          <Link href="/admin" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 last:border-0 hover:text-trini-gold transition-colors">
+          <Link href="/admin" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base last:border-0 hover:text-trini-gold transition-colors">
             <Shield className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Admin
           </Link>
         )}
