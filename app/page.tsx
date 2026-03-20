@@ -210,7 +210,7 @@ export default async function HomePage() {
               </div>
             </div>
             <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-4">
-              Freezone <span className="text-tropical-orange">Sell</span>/<span className="text-trini-gold">Swap</span> or <span className="text-trini-gold">Free</span>
+              Freezone <span className="text-trini-gold">Sell</span><span className="text-white">/</span><span className="text-trini-gold">Swap</span><span className="text-white"> or Free</span>
             </h1>
             <p className="text-xl text-white/80 max-w-2xl mx-auto mb-8">
               Trinidad & Tobago&apos;s premier marketplace for swapping and selling. Join our community today! 🇹🇹
