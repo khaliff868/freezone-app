@@ -297,7 +297,7 @@ export default async function HomePage() {
                 </div>
                 <Link href="/browse" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">View All<ArrowRight className="w-4 h-4" /></Link>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {featuredListings.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
               </div>
             </section>
@@ -345,7 +345,7 @@ export default async function HomePage() {
                 </div>
                 <Link href="/browse?type=SWAP" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">View All<ArrowRight className="w-4 h-4" /></Link>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {swapListings.map((listing) => <ListingCard key={listing.id} listing={listing} showSwapButton={true} />)}
               </div>
             </section>
@@ -364,7 +364,7 @@ export default async function HomePage() {
                 </div>
                 <Link href="/browse?sort=popular" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">View All<ArrowRight className="w-4 h-4" /></Link>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {trendingListings.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
               </div>
             </section>
@@ -383,7 +383,7 @@ export default async function HomePage() {
                 </div>
                 <Link href="/browse" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">View All<ArrowRight className="w-4 h-4" /></Link>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {recommendedListings.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
               </div>
             </section>
