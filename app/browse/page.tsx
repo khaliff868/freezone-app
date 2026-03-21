@@ -225,14 +225,9 @@ function BrowsePageInner() {
     return CATEGORIES.find(c => c.name === cat)?.emoji || '📦';
   };
 
-  // Get count for a category — includes subcategories for House & Land
   const getCategoryCount = (catName: string) => {
     if (!results?.filters?.categories) return 0;
-    if (catName === 'House & Land') {
-      return results.filters.categories
-        .filter(c => c.name === 'House & Land' || c.name.startsWith('House & Land -'))
-        .reduce((sum, c) => sum + c.count, 0);
-    }
+    // For House & Land parent, find the rolled-up entry
     return results.filters.categories.find(c => c.name === catName)?.count || 0;
   };
 
