@@ -35,7 +35,18 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" style={{ colorScheme: 'light' }} suppressHydrationWarning>
-      <body className={`${inter.className} bg-white text-slate-900 dark:bg-slate-900 dark:text-white`} style={{ backgroundColor: '#ffffff' }}>
+      <head>
+        {/* Runs synchronously before paint — prevents dark flash on mobile */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'){document.documentElement.classList.add('dark');document.documentElement.style.colorScheme='dark';}else{document.documentElement.classList.remove('dark');document.documentElement.style.colorScheme='light';document.documentElement.style.backgroundColor='#ffffff';}}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body
+        className={`${inter.className} bg-white text-slate-900 dark:bg-slate-900 dark:text-white`}
+        style={{ backgroundColor: '#ffffff' }}
+      >
         <Providers>
           <Navbar />
           {children}
