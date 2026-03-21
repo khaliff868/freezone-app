@@ -237,7 +237,6 @@ function BrowsePageInner() {
 
   const getCategoryCount = (catName: string) => {
     if (!results?.filters?.categories) return 0;
-    // For House & Land parent, find the rolled-up entry
     return results.filters.categories.find(c => c.name === catName)?.count || 0;
   };
 
@@ -279,11 +278,10 @@ function BrowsePageInner() {
     </Link>
   );
 
-  // Display label for selected category
   const categoryDisplayName = category.startsWith('House & Land') ? 'House & Land' : category;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen bg-white dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <div className="bg-gradient-to-r from-trini-red via-trini-black to-trini-red py-8 px-6">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold text-white mb-2">Browse Listings 🇹🇹</h1>
@@ -365,7 +363,6 @@ function BrowsePageInner() {
                         </span>
                       </button>
 
-                      {/* House & Land subcategory dropdown */}
                       {isHouseLand && isExpanded && (
                         <div className="ml-4 mt-1 space-y-1 border-l-2 border-trini-gold/30 pl-3">
                           {[
@@ -392,7 +389,6 @@ function BrowsePageInner() {
                         </div>
                       )}
 
-                      {/* Vehicles subcategory dropdown */}
                       {isVehicles && isVehiclesExpanded && (
                         <div className="ml-4 mt-1 space-y-1 border-l-2 border-trini-red/30 pl-3 max-h-64 overflow-y-auto">
                           {VEHICLE_MAKES.map((make) => {
@@ -527,7 +523,7 @@ function BrowsePageInner() {
                 <div className="animate-spin rounded-full h-16 w-16 border-4 border-caribbean-teal border-t-transparent"></div>
               </div>
             ) : results?.listings.length === 0 ? (
-              <div className="bg-white/10 rounded-2xl p-12 text-center">
+              <div className="bg-white dark:bg-white/10 rounded-2xl p-12 text-center border border-gray-100 dark:border-transparent">
                 <Package className="w-16 h-16 text-gray-500 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No listings found</h3>
                 <p className="text-gray-500 dark:text-gray-400 mb-6">Try adjusting your filters or search terms</p>
@@ -583,7 +579,6 @@ function BrowsePageInner() {
                           <span>•</span>
                           <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{listing.views} views</span>
                         </div>
-                        {/* Show subcategory badge for House & Land */}
                         {listing.category.startsWith('House & Land -') && (
                           <span className="mt-2 inline-block text-xs px-2 py-0.5 bg-trini-gold/20 text-trini-gold rounded-full font-medium">
                             {listing.category.replace('House & Land - ', '')}
@@ -595,9 +590,9 @@ function BrowsePageInner() {
                 </div>
                 {results && results.pagination.totalPages > 1 && (
                   <div className="flex items-center justify-center gap-2 mt-8">
-                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 bg-white/10 rounded-lg text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors">Previous</button>
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 bg-gray-100 dark:bg-white/10 rounded-lg text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 dark:hover:bg-white/20 transition-colors">Previous</button>
                     <span className="px-4 py-2 text-gray-500 dark:text-gray-400">Page {page} of {results.pagination.totalPages}</span>
-                    <button onClick={() => setPage(p => Math.min(results.pagination.totalPages, p + 1))} disabled={page === results.pagination.totalPages} className="px-4 py-2 bg-white/10 rounded-lg text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors">Next</button>
+                    <button onClick={() => setPage(p => Math.min(results.pagination.totalPages, p + 1))} disabled={page === results.pagination.totalPages} className="px-4 py-2 bg-gray-100 dark:bg-white/10 rounded-lg text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 dark:hover:bg-white/20 transition-colors">Next</button>
                   </div>
                 )}
               </>
@@ -659,7 +654,7 @@ function BrowsePageInner() {
 export default function BrowsePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-16 w-16 border-4 border-caribbean-teal border-t-transparent"></div>
       </div>
     }>
