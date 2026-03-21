@@ -7,7 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   ArrowLeft, Upload, X, Loader2, ImagePlus, Package,
-  DollarSign, MapPin, FileText, Tag, ArrowRightLeft, GripVertical, Gift,
+  DollarSign, MapPin, FileText, Tag, ArrowRightLeft, Gift,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,29 @@ const CATEGORIES = [
   'Business & Industrial', 'Events & Tickets', 'Pets & Livestock',
   'Art & Collectibles', 'Other',
 ];
+
+const VEHICLE_HIERARCHY: Record<string, string[]> = {
+  Cars: [
+    'Audi', 'BMW', 'Chevrolet', 'Dodge', 'Ford', 'Honda', 'Hyundai', 'Isuzu',
+    'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Mazda', 'Mercedes-Benz', 'Mini',
+    'Mitsubishi', 'Nissan', 'Other', 'Peugeot', 'Porsche', 'Subaru', 'Suzuki',
+    'Toyota', 'Volkswagen', 'Volvo',
+  ],
+  SUVs: [
+    'Audi', 'BMW', 'Chevrolet', 'Ford', 'Honda', 'Hyundai', 'Isuzu', 'Jeep',
+    'Kia', 'Land Rover', 'Lexus', 'Mazda', 'Mercedes-Benz', 'Mitsubishi',
+    'Nissan', 'Other', 'Subaru', 'Suzuki', 'Toyota', 'Volkswagen',
+  ],
+  Vans: [
+    'Ford', 'Hyundai', 'Isuzu', 'Kia', 'Mercedes-Benz', 'Mitsubishi',
+    'Nissan', 'Other', 'Peugeot', 'Suzuki', 'Toyota', 'Volkswagen',
+  ],
+  Trucks: [
+    'Chevrolet', 'Dodge', 'Ford', 'Isuzu', 'Jeep', 'Mazda', 'Mercedes-Benz',
+    'Mitsubishi', 'Nissan', 'Other', 'Toyota', 'Volkswagen',
+  ],
+};
+const VEHICLE_TYPES = Object.keys(VEHICLE_HIERARCHY);
 
 const CONDITIONS = [
   { value: 'NEW', label: 'New', description: 'Brand new, never used' },
@@ -61,29 +84,24 @@ const LOCATIONS = [
 const MAX_IMAGES = 8;
 
 type Listing = {
-  id: string;
-  title: string;
-  description: string;
-  price: number | null;
-  currency: string;
-  listingType: string;
-  status: string;
-  category: string;
-  condition: string;
-  location: string;
-  swapTerms: string | null;
-  featured: boolean;
-  featuredUntil: string | null;
-  boosted: boolean;
-  boostedUntil: string | null;
-  images: string[];
-  createdAt: string;
-  updatedAt: string;
-  publishedAt: string | null;
-  expiresAt: string | null;
+  id: string; title: string; description: string; price: number | null;
+  currency: string; listingType: string; status: string; category: string;
+  condition: string; location: string; swapTerms: string | null;
+  featured: boolean; featuredUntil: string | null; boosted: boolean;
+  boostedUntil: string | null; images: string[]; createdAt: string;
+  updatedAt: string; publishedAt: string | null; expiresAt: string | null;
   activatedAt: string | null;
   user: { id: string; name: string; email: string; tier: string; };
 };
+
+// Parse stored category "Vehicles - Cars - Toyota" → { type, make }
+function parseVehicleCategory(cat: string): { type: string; make: string } {
+  if (!cat.startsWith('Vehicles - ')) return { type: '', make: '' };
+  const parts = cat.split(' - ');
+  if (parts.length === 3) return { type: parts[1], make: parts[2] };
+  if (parts.length === 2) return { type: parts[1], make: '' };
+  return { type: '', make: '' };
+}
 
 export default function EditListingPage() {
   const { data: session, status } = useSession() || {};
@@ -94,20 +112,17 @@ export default function EditListingPage() {
   const [loading, setLoading] = useState(true);
   const [listing, setListing] = useState<Listing | null>(null);
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: '',
-    condition: '',
-    listingType: 'SELL',
-    price: '',
-    currency: 'TTD',
-    location: '',
-    swapTerms: '',
+    title: '', description: '', category: '', condition: '',
+    listingType: 'SELL', price: '', currency: 'TTD', location: '', swapTerms: '',
   });
-
+  const [vehicleType, setVehicleType] = useState('');
+  const [vehicleMake, setVehicleMake] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const isVehicles = formData.category === 'Vehicles' || formData.category.startsWith('Vehicles - ');
+  const availableMakes = vehicleType ? VEHICLE_HIERARCHY[vehicleType] || [] : [];
 
   useEffect(() => {
     if (listingId && session?.user) loadListing();
@@ -128,10 +143,17 @@ export default function EditListingPage() {
       }
 
       setListing(listingData);
+
+      // Parse vehicle subcategory if applicable
+      const { type, make } = parseVehicleCategory(listingData.category);
+      setVehicleType(type);
+      setVehicleMake(make);
+
       setFormData({
         title: listingData.title || '',
         description: listingData.description || '',
-        category: listingData.category || '',
+        // Show "Vehicles" in the category dropdown regardless of subcategory
+        category: listingData.category.startsWith('Vehicles') ? 'Vehicles' : listingData.category,
         condition: listingData.condition || '',
         listingType: listingData.listingType || 'SELL',
         price: listingData.price?.toString() || '',
@@ -148,6 +170,14 @@ export default function EditListingPage() {
       setLoading(false);
     }
   };
+
+  // Reset make when type changes
+  useEffect(() => { setVehicleMake(''); }, [vehicleType]);
+
+  // Reset vehicle selections when category changes away from Vehicles
+  useEffect(() => {
+    if (formData.category !== 'Vehicles') { setVehicleType(''); setVehicleMake(''); }
+  }, [formData.category]);
 
   useEffect(() => {
     if (formData.category === 'Free Items' && formData.listingType !== 'FREE') {
@@ -184,6 +214,15 @@ export default function EditListingPage() {
       </div>
     );
   }
+
+  const getFinalCategory = () => {
+    if (formData.category === 'Vehicles') {
+      if (vehicleType && vehicleMake) return `Vehicles - ${vehicleType} - ${vehicleMake}`;
+      if (vehicleType) return `Vehicles - ${vehicleType}`;
+      return 'Vehicles';
+    }
+    return formData.category;
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -238,6 +277,10 @@ export default function EditListingPage() {
     if (!formData.description.trim()) { toast.error('Please enter a description'); return; }
     if (formData.description.trim().length > 500) { toast.error('Description cannot exceed 500 characters'); return; }
     if (!formData.category) { toast.error('Please select a category'); return; }
+    if (formData.category === 'Vehicles') {
+      if (!vehicleType) { toast.error('Please select a vehicle type'); return; }
+      if (!vehicleMake) { toast.error('Please select a vehicle make'); return; }
+    }
     if (!formData.condition) { toast.error('Please select a condition'); return; }
     if (!formData.location) { toast.error('Please select a location'); return; }
     if ((formData.listingType === 'SELL' || formData.listingType === 'BOTH') && !formData.price) { toast.error('Please enter a price'); return; }
@@ -249,7 +292,7 @@ export default function EditListingPage() {
       const payload: Record<string, any> = {
         title: formData.title.trim(),
         description: formData.description.trim(),
-        category: formData.category,
+        category: getFinalCategory(),
         condition: formData.condition,
         listingType: formData.listingType,
         location: formData.location,
@@ -358,7 +401,10 @@ export default function EditListingPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="flex items-center gap-2 mb-2"><Tag className="w-4 h-4" />Category</Label>
-                  <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                  >
                     <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                     <SelectContent>{CATEGORIES.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent>
                   </Select>
@@ -371,6 +417,32 @@ export default function EditListingPage() {
                   </Select>
                 </div>
               </div>
+
+              {/* Vehicles — 2-step: type then make */}
+              {isVehicles && (
+                <div className="space-y-4 p-4 bg-trini-red/5 border border-trini-red/20 rounded-xl">
+                  <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">🚗 Vehicle Details</p>
+                  <div>
+                    <Label className="text-sm mb-2 block">Vehicle Type</Label>
+                    <Select value={vehicleType} onValueChange={setVehicleType}>
+                      <SelectTrigger><SelectValue placeholder="Select vehicle type" /></SelectTrigger>
+                      <SelectContent>{VEHICLE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  {vehicleType && (
+                    <div>
+                      <Label className="text-sm mb-2 block">Make / Brand</Label>
+                      <Select value={vehicleMake} onValueChange={setVehicleMake}>
+                        <SelectTrigger><SelectValue placeholder="Select make" /></SelectTrigger>
+                        <SelectContent>{availableMakes.map((make) => <SelectItem key={make} value={make}>{make}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {vehicleType && vehicleMake && (
+                    <p className="text-xs text-gray-500">Will be saved as: <span className="font-semibold text-gray-700">Vehicles › {vehicleType} › {vehicleMake}</span></p>
+                  )}
+                </div>
+              )}
 
               {/* Location */}
               <div>
