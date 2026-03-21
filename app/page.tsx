@@ -1,8 +1,5 @@
 // Home Page - Marketplace with Multiple Content Sections
 
-
-
-
 import { prisma } from '@/lib/db';
 import Link from 'next/link';
 import { Sparkles, TrendingUp, RefreshCcw, ShoppingBag, ArrowRight, Tag, Clock, Users, Activity, Zap, Heart, Grid3X3, Eye, Star, MapPin } from 'lucide-react';
@@ -54,7 +51,6 @@ type ListingWithUser = {
 };
 
 export default async function HomePage() {
-  // Fetch enough listings for all sections
   const allListings = await prisma.listing.findMany({
     where: { status: 'ACTIVE' },
     include: { user: { select: { id: true, name: true, tier: true, verified: true } } },
@@ -66,7 +62,6 @@ export default async function HomePage() {
   const totalUsers = await prisma.user.count();
   const totalSwaps = await prisma.swapOffer.count({ where: { status: 'COMPLETED' } });
 
-  // Featured Listings — 8 items
   const featuredListings = allListings.filter(l => l.featured).slice(0, 8);
   if (featuredListings.length < 8) {
     const neededIds = new Set(featuredListings.map(l => l.id));
@@ -74,10 +69,8 @@ export default async function HomePage() {
     featuredListings.push(...additional);
   }
 
-  // Latest Listings — 10 items
   const latestListings = allListings.slice(0, 10);
 
-  // Swap Listings — 10 items
   const swapListings = allListings
     .filter(l => l.listingType === 'SWAP' || l.listingType === 'BOTH')
     .slice(0, 10);
@@ -87,18 +80,15 @@ export default async function HomePage() {
     swapListings.push(...additional);
   }
 
-  // Trending by views — 10 items
   const trendingListings = [...allListings]
     .sort((a, b) => (b.views || 0) - (a.views || 0))
     .slice(0, 10);
 
-  // Recommended — shuffle, 10 items
   const shuffled = [...allListings].sort(() => Math.random() - 0.5);
   const recommendedListings = shuffled.slice(0, 10);
 
   const categoryMap: Record<string, number> = {};
   allListings.forEach(l => {
-    // Roll up House & Land subcategories under the parent category
     const cat = l.category.startsWith('House & Land') ? 'House & Land' : l.category;
     categoryMap[cat] = (categoryMap[cat] || 0) + 1;
   });
@@ -117,15 +107,6 @@ export default async function HomePage() {
     message: `New listing posted in ${l.category}`,
     timestamp: l.createdAt,
   }));
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'SELL': return 'bg-caribbean-ocean text-white';
-      case 'SWAP': return 'bg-tropical-purple text-white';
-      case 'BOTH': return 'bg-gradient-to-r from-caribbean-ocean to-tropical-purple text-white';
-      default: return 'bg-gray-500 text-white';
-    }
-  };
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -148,7 +129,7 @@ export default async function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen bg-white dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-trini-red via-trini-black to-trini-red py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -239,7 +220,7 @@ export default async function HomePage() {
           {/* Main Content */}
           <div className="flex-1 min-w-0">
 
-            {/* Featured Listings — 8 items */}
+            {/* Featured Listings */}
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -258,7 +239,7 @@ export default async function HomePage() {
               </div>
             </section>
 
-            {/* Latest Listings — 10 items */}
+            {/* Latest Listings */}
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -287,7 +268,7 @@ export default async function HomePage() {
               <BannerAd placement="homepage_mid" />
             </section>
 
-            {/* Suggested Swap Matches — 10 items */}
+            {/* Suggested Swap Matches */}
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -306,7 +287,7 @@ export default async function HomePage() {
               </div>
             </section>
 
-            {/* Trending Listings — 10 items */}
+            {/* Trending Listings */}
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -325,7 +306,7 @@ export default async function HomePage() {
               </div>
             </section>
 
-            {/* Recommended For You — 10 items */}
+            {/* Recommended For You */}
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -397,7 +378,7 @@ export default async function HomePage() {
       </div>
 
       {/* Browse Categories */}
-      <section className="py-16 bg-gray-100 dark:bg-gray-800/30">
+      <section className="py-16 bg-gray-50 dark:bg-gray-800/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">Browse Categories</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
