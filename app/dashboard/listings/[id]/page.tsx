@@ -86,6 +86,7 @@ export default function ListingDetailPage() {
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [uploadingProof, setUploadingProof] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [togglingWishlist, setTogglingWishlist] = useState(false);
   const [paymentExpired, setPaymentExpired] = useState(false);
@@ -254,29 +255,67 @@ export default function ListingDetailPage() {
     toast.success(`${label} copied to clipboard!`);
   };
 
+  const handleUploadClick = () => {
+    console.log('[UploadProof] Upload button clicked');
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    console.log('[UploadProof] File selected:', file?.name, file?.size);
+    if (!file) return;
+
+    // Validate type
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!allowed.includes(file.type)) {
+      toast.error('Only images (JPG, PNG, WebP) and PDF files are allowed');
+      event.target.value = '';
+      return;
+    }
+    // Validate size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File must be under 10MB');
+      event.target.value = '';
+      return;
+    }
+
+    await handleUploadProof(file);
+    event.target.value = '';
+  };
+
   const handleUploadProof = async (file: File) => {
     if (!paymentInfo) return;
     setUploadingProof(true);
     try {
+      console.log('[UploadProof] Uploading to storage:', file.name);
       const formData = new FormData();
       formData.append('file', file);
       const uploadRes = await fetch('/api/upload/presigned', { method: 'POST', body: formData });
-      if (!uploadRes.ok) throw new Error('Failed to upload file');
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({}));
+        console.error('[UploadProof] Storage upload failed:', err);
+        throw new Error('Failed to upload file');
+      }
       const { publicUrl } = await uploadRes.json();
+      console.log('[UploadProof] Storage upload success, publicUrl:', publicUrl);
+
       const proofRes = await fetch('/api/payments/upload-proof', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paymentId: paymentInfo.paymentId, proofUrl: publicUrl }),
       });
       if (proofRes.ok) {
+        console.log('[UploadProof] Proof saved successfully');
         toast.success('Payment proof uploaded! We will verify your payment within 24-48 hours.');
         setShowPaymentModal(false);
         loadListing();
       } else {
         const error = await proofRes.json();
+        console.error('[UploadProof] Proof save failed:', error);
         toast.error(error.error || 'Failed to save proof');
       }
     } catch (error) {
+      console.error('[UploadProof] Upload error:', error);
       toast.error('Failed to upload proof. Please try again.');
     } finally {
       setUploadingProof(false);
@@ -773,10 +812,21 @@ export default function ListingDetailPage() {
                       <p className="text-sm text-gray-700">{paymentInfo.instructions}</p>
                     </div>
                     <p className="text-sm text-gray-600 text-center mb-3">After making the transfer/deposit, upload your receipt or proof of payment.</p>
-                    <label className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-caribbean-ocean text-white font-semibold rounded-xl hover:opacity-90 transition cursor-pointer">
-                      <input type="file" accept="image/*,.pdf" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadProof(file); }} className="hidden" disabled={uploadingProof} />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleUploadClick}
+                      disabled={uploadingProof}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-caribbean-ocean text-white font-semibold rounded-xl hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                       {uploadingProof ? <><Loader2 className="w-5 h-5 animate-spin" />Uploading...</> : <><Upload className="w-5 h-5" />Upload Payment Proof</>}
-                    </label>
+                    </button>
                   </>
                 )}
                 <button onClick={() => { setPaymentStep('select'); setPaymentInfo(null); setSelectedPaymentMethod(null); }} className="w-full mt-4 px-4 py-2 text-gray-600 hover:text-gray-900 transition text-sm">← Choose different payment method</button>
