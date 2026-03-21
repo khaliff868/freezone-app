@@ -82,6 +82,9 @@ function BrowsePageInner() {
 
   const [query, setQuery] = useState(searchParams.get('q') || '');
   const [category, setCategory] = useState(searchParams.get('category') || '');
+  const [houseLandExpanded, setHouseLandExpanded] = useState(
+    () => (searchParams.get('category') || '').startsWith('House & Land')
+  );
   const [listingType, setListingType] = useState(searchParams.get('type') || '');
   const [condition, setCondition] = useState(searchParams.get('condition') || '');
   const [location, setLocation] = useState(searchParams.get('location') || '');
@@ -213,7 +216,7 @@ function BrowsePageInner() {
   };
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setShowSuggestions(false); setPage(1); fetchResults(); };
-  const clearFilters = () => { setQuery(''); setCategory(''); setListingType(''); setCondition(''); setLocation(''); setMinPrice(''); setMaxPrice(''); setSortBy('newest'); setPage(1); };
+  const clearFilters = () => { setQuery(''); setCategory(''); setListingType(''); setCondition(''); setLocation(''); setMinPrice(''); setMaxPrice(''); setSortBy('newest'); setPage(1); setHouseLandExpanded(false); };
 
   const getCategoryStyle = (cat: string) => CATEGORIES.find(c => c.name === cat)?.color || 'from-gray-500 to-gray-600';
   const getCategoryEmoji = (cat: string) => {
@@ -298,7 +301,7 @@ function BrowsePageInner() {
               </h2>
               <div className="space-y-1">
                 <button
-                  onClick={() => { setCategory(''); setPage(1); }}
+                  onClick={() => { setCategory(''); setHouseLandExpanded(false); setPage(1); }}
                   className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 font-medium ${category === '' ? 'bg-trini-gold text-black' : 'text-gray-700 dark:text-gray-100 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'}`}
                 >
                   <span>📋</span><span>All Categories</span>
@@ -310,12 +313,27 @@ function BrowsePageInner() {
                   const count = getCategoryCount(cat.name);
                   const isActive = category === cat.name || (cat.name === 'House & Land' && category.startsWith('House & Land'));
                   const isHouseLand = cat.name === 'House & Land';
-                  const isExpanded = isHouseLand && category.startsWith('House & Land');
+                  const isExpanded = isHouseLand && houseLandExpanded;
 
                   return (
                     <div key={cat.name}>
                       <button
-                        onClick={() => { setCategory(cat.name); setPage(1); }}
+                        onClick={() => {
+                          if (isHouseLand) {
+                            if (houseLandExpanded) {
+                              // Collapse — also clear subcategory filter back to parent
+                              setHouseLandExpanded(false);
+                              setCategory('House & Land');
+                            } else {
+                              setHouseLandExpanded(true);
+                              setCategory('House & Land');
+                            }
+                          } else {
+                            setCategory(cat.name);
+                            setHouseLandExpanded(false);
+                          }
+                          setPage(1);
+                        }}
                         className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 font-medium ${isActive ? 'bg-trini-gold text-black' : 'text-gray-700 dark:text-gray-100 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'}`}
                       >
                         <span>{cat.emoji}</span>
@@ -341,7 +359,7 @@ function BrowsePageInner() {
                             return (
                               <button
                                 key={sub.value}
-                                onClick={(e) => { e.stopPropagation(); setCategory(sub.value); setPage(1); }}
+                                onClick={(e) => { e.stopPropagation(); setCategory(sub.value); setHouseLandExpanded(true); setPage(1); }}
                                 className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium ${subActive ? 'bg-trini-gold text-black' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'}`}
                               >
                                 <span>{sub.emoji}</span>
