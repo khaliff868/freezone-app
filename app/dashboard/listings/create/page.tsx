@@ -90,7 +90,6 @@ export default function CreateListingPage() {
   const [houseLandSubcategory, setHouseLandSubcategory] = useState('');
   const [houseTransactionType, setHouseTransactionType] = useState('');
   const [vehicleMake, setVehicleMake] = useState('');
-
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -100,32 +99,21 @@ export default function CreateListingPage() {
 
   const getFinalCategory = () => {
     if (isHouseLand) {
-      if (houseLandSubcategory === 'House' && houseTransactionType) {
-        return `House & Land - House ${houseTransactionType}`;
-      }
+      if (houseLandSubcategory === 'House' && houseTransactionType) return `House & Land - House ${houseTransactionType}`;
       if (houseLandSubcategory === 'Land') return 'House & Land - Land';
       return 'House & Land';
     }
-    if (isVehicles && vehicleMake) {
-      return `Vehicles - ${vehicleMake}`;
-    }
+    if (isVehicles && vehicleMake) return `Vehicles - ${vehicleMake}`;
     return formData.category;
   };
 
   useEffect(() => {
-    if (!isHouseLand) {
-      setHouseLandSubcategory('');
-      setHouseTransactionType('');
-    }
-    if (!isVehicles) {
-      setVehicleMake('');
-    }
+    if (!isHouseLand) { setHouseLandSubcategory(''); setHouseTransactionType(''); }
+    if (!isVehicles) setVehicleMake('');
   }, [formData.category, isHouseLand, isVehicles]);
 
   useEffect(() => {
-    if (houseLandSubcategory !== 'House') {
-      setHouseTransactionType('');
-    }
+    if (houseLandSubcategory !== 'House') setHouseTransactionType('');
   }, [houseLandSubcategory]);
 
   useEffect(() => {
@@ -141,44 +129,26 @@ export default function CreateListingPage() {
   }, [searchParams]);
 
   if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
-  if (status === 'unauthenticated') {
-    router.push('/auth/login');
-    return null;
-  }
+  if (status === 'unauthenticated') { router.push('/auth/login'); return null; }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
     const remainingSlots = MAX_IMAGES - images.length;
-    if (remainingSlots <= 0) {
-      toast.error(`Maximum ${MAX_IMAGES} images allowed`);
-      return;
-    }
-
+    if (remainingSlots <= 0) { toast.error(`Maximum ${MAX_IMAGES} images allowed`); return; }
     const filesToUpload = Array.from(files).slice(0, remainingSlots);
     setUploading(true);
-
     try {
       for (const file of filesToUpload) {
         if (!file.type.startsWith('image/')) { toast.error(`${file.name} is not an image`); continue; }
         if (file.size > 10 * 1024 * 1024) { toast.error(`${file.name} is too large (max 10MB)`); continue; }
-
         const data = new FormData();
         data.append('file', file);
-
         const res = await fetch('/api/upload/presigned', { method: 'POST', body: data });
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Upload failed');
-        }
+        if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Upload failed'); }
         const { publicUrl } = await res.json();
         setImages(prev => [...prev, publicUrl]);
       }
@@ -192,9 +162,7 @@ export default function CreateListingPage() {
     }
   };
 
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
-  };
+  const removeImage = (index: number) => setImages(prev => prev.filter((_, i) => i !== index));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,27 +171,20 @@ export default function CreateListingPage() {
     if (formData.title.trim().length < 3) { toast.error('Title must be between 3 and 50 characters'); return; }
     if (formData.title.trim().length > 50) { toast.error('Title must be between 3 and 50 characters'); return; }
     if (!formData.description.trim()) { toast.error('Please enter a description'); return; }
+    if (formData.description.trim().length > 500) { toast.error('Description cannot exceed 500 characters'); return; }
     if (!formData.category) { toast.error('Please select a category'); return; }
-
     if (isHouseLand) {
       if (!houseLandSubcategory) { toast.error('Please select House or Land'); return; }
-      if (houseLandSubcategory === 'House' && !houseTransactionType) {
-        toast.error('Please select For Sale or For Rent'); return;
-      }
+      if (houseLandSubcategory === 'House' && !houseTransactionType) { toast.error('Please select For Sale or For Rent'); return; }
     }
-
-    if (isVehicles && !vehicleMake) {
-      toast.error('Please select a vehicle make'); return;
-    }
-
+    if (isVehicles && !vehicleMake) { toast.error('Please select a vehicle make'); return; }
     if (!formData.condition) { toast.error('Please select a condition'); return; }
     if (!formData.location) { toast.error('Please select a location'); return; }
-    if ((formData.listingType === 'SELL' || formData.listingType === 'BOTH') && !formData.price) {
-      toast.error('Please enter a price'); return;
-    }
+    if ((formData.listingType === 'SELL' || formData.listingType === 'BOTH') && !formData.price) { toast.error('Please enter a price'); return; }
+    if ((formData.listingType === 'SWAP' || formData.listingType === 'BOTH') && formData.swapTerms.trim().length > 0 && formData.swapTerms.trim().length < 3) { toast.error('Swap terms must be between 3 and 500 characters'); return; }
+    if ((formData.listingType === 'SWAP' || formData.listingType === 'BOTH') && formData.swapTerms.trim().length > 500) { toast.error('Swap terms must be between 3 and 500 characters'); return; }
 
     setSubmitting(true);
-
     try {
       const payload = {
         ...formData,
@@ -231,18 +192,8 @@ export default function CreateListingPage() {
         price: formData.listingType === 'FREE' ? null : (formData.price ? parseFloat(formData.price) : null),
         images,
       };
-
-      const res = await fetch('/api/listings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Failed to create listing');
-      }
-
+      const res = await fetch('/api/listings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!res.ok) { const error = await res.json(); throw new Error(error.error || 'Failed to create listing'); }
       const data = await res.json();
       toast.success('Listing created! Pay the listing fee to publish.');
       router.push(`/dashboard/listings/${data.listing.id}`);
@@ -260,7 +211,6 @@ export default function CreateListingPage() {
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition mb-6">
           <ArrowLeft className="w-4 h-4" />Back to Dashboard
         </Link>
-
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -272,20 +222,14 @@ export default function CreateListingPage() {
 
               {/* Images */}
               <div>
-                <Label className="flex items-center gap-2 mb-2">
-                  <ImagePlus className="w-4 h-4" />Photos (up to {MAX_IMAGES})
-                </Label>
+                <Label className="flex items-center gap-2 mb-2"><ImagePlus className="w-4 h-4" />Photos (up to {MAX_IMAGES})</Label>
                 <div className="grid grid-cols-4 gap-3">
                   {images.map((img, index) => (
                     <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-muted group">
                       <Image src={img} alt={`Image ${index + 1}`} fill className="object-cover" />
-                      {index === 0 && (
-                        <span className="absolute top-1 left-1 text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">Main</span>
-                      )}
+                      {index === 0 && <span className="absolute top-1 left-1 text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">Main</span>}
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                        <button type="button" onClick={() => removeImage(index)} className="p-1 bg-red-500 text-white rounded hover:bg-red-600">
-                          <X className="w-4 h-4" />
-                        </button>
+                        <button type="button" onClick={() => removeImage(index)} className="p-1 bg-red-500 text-white rounded hover:bg-red-600"><X className="w-4 h-4" /></button>
                       </div>
                     </div>
                   ))}
@@ -301,9 +245,7 @@ export default function CreateListingPage() {
 
               {/* Title */}
               <div>
-                <Label htmlFor="title" className="flex items-center gap-2 mb-2">
-                  <FileText className="w-4 h-4" />Title
-                </Label>
+                <Label htmlFor="title" className="flex items-center gap-2 mb-2"><FileText className="w-4 h-4" />Title</Label>
                 <Input
                   id="title"
                   placeholder="What are you selling, swapping or giving free?"
@@ -312,76 +254,50 @@ export default function CreateListingPage() {
                   minLength={3}
                   maxLength={50}
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formData.title.length}/50 characters
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">{formData.title.length}/50 characters</p>
               </div>
 
               {/* Description */}
               <div>
-                <Label htmlFor="description" className="flex items-center gap-2 mb-2">
-                  <FileText className="w-4 h-4" />Description
-                </Label>
+                <Label htmlFor="description" className="flex items-center gap-2 mb-2"><FileText className="w-4 h-4" />Description</Label>
                 <Textarea
                   id="description"
                   placeholder="Describe your item in detail..."
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   rows={4}
+                  maxLength={500}
                 />
+                <p className="text-xs text-muted-foreground mt-1">{formData.description.length}/500 characters</p>
               </div>
 
               {/* Category & Condition */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="flex items-center gap-2 mb-2">
-                    <Tag className="w-4 h-4" />Category
-                  </Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-                  >
+                  <Label className="flex items-center gap-2 mb-2"><Tag className="w-4 h-4" />Category</Label>
+                  <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
                     <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
+                    <SelectContent>{CATEGORIES.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label className="flex items-center gap-2 mb-2">
-                    <Package className="w-4 h-4" />Condition
-                  </Label>
-                  <Select
-                    value={formData.condition}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, condition: value }))}
-                  >
+                  <Label className="flex items-center gap-2 mb-2"><Package className="w-4 h-4" />Condition</Label>
+                  <Select value={formData.condition} onValueChange={(value) => setFormData(prev => ({ ...prev, condition: value }))}>
                     <SelectTrigger><SelectValue placeholder="Select condition" /></SelectTrigger>
-                    <SelectContent>
-                      {CONDITIONS.map((cond) => (
-                        <SelectItem key={cond.value} value={cond.value}>{cond.label}</SelectItem>
-                      ))}
-                    </SelectContent>
+                    <SelectContent>{CONDITIONS.map((cond) => <SelectItem key={cond.value} value={cond.value}>{cond.label}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
 
-              {/* House & Land Sub-dropdowns */}
+              {/* House & Land */}
               {isHouseLand && (
                 <div className="space-y-4 p-4 bg-trini-gold/10 border border-trini-gold/20 rounded-xl">
-                  <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    🏠 House & Land Details
-                  </p>
+                  <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">🏠 House & Land Details</p>
                   <div>
                     <Label className="text-sm mb-2 block">Property Type</Label>
                     <Select value={houseLandSubcategory} onValueChange={setHouseLandSubcategory}>
                       <SelectTrigger><SelectValue placeholder="Select property type" /></SelectTrigger>
-                      <SelectContent>
-                        {HOUSE_LAND_SUBCATEGORIES.map((sub) => (
-                          <SelectItem key={sub} value={sub}>{sub}</SelectItem>
-                        ))}
-                      </SelectContent>
+                      <SelectContent>{HOUSE_LAND_SUBCATEGORIES.map((sub) => <SelectItem key={sub} value={sub}>{sub}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   {houseLandSubcategory === 'House' && (
@@ -389,70 +305,43 @@ export default function CreateListingPage() {
                       <Label className="text-sm mb-2 block">Transaction Type</Label>
                       <Select value={houseTransactionType} onValueChange={setHouseTransactionType}>
                         <SelectTrigger><SelectValue placeholder="For Sale or For Rent?" /></SelectTrigger>
-                        <SelectContent>
-                          {HOUSE_TRANSACTION_TYPES.map((t) => (
-                            <SelectItem key={t} value={t}>{t}</SelectItem>
-                          ))}
-                        </SelectContent>
+                        <SelectContent>{HOUSE_TRANSACTION_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                   )}
                   {getFinalCategory() !== 'House & Land' && (
-                    <p className="text-xs text-gray-500">
-                      Will be saved as: <span className="font-semibold text-gray-700">{getFinalCategory()}</span>
-                    </p>
+                    <p className="text-xs text-gray-500">Will be saved as: <span className="font-semibold text-gray-700">{getFinalCategory()}</span></p>
                   )}
                 </div>
               )}
 
-              {/* Vehicles make dropdown */}
+              {/* Vehicles */}
               {isVehicles && (
                 <div className="space-y-4 p-4 bg-trini-red/5 border border-trini-red/20 rounded-xl">
-                  <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    🚗 Vehicle Details
-                  </p>
+                  <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">🚗 Vehicle Details</p>
                   <div>
                     <Label className="text-sm mb-2 block">Make / Brand</Label>
                     <Select value={vehicleMake} onValueChange={setVehicleMake}>
                       <SelectTrigger><SelectValue placeholder="Select vehicle make" /></SelectTrigger>
-                      <SelectContent>
-                        {VEHICLE_MAKES.map((make) => (
-                          <SelectItem key={make} value={make}>{make}</SelectItem>
-                        ))}
-                      </SelectContent>
+                      <SelectContent>{VEHICLE_MAKES.map((make) => <SelectItem key={make} value={make}>{make}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  {vehicleMake && (
-                    <p className="text-xs text-gray-500">
-                      Will be saved as: <span className="font-semibold text-gray-700">Vehicles - {vehicleMake}</span>
-                    </p>
-                  )}
+                  {vehicleMake && <p className="text-xs text-gray-500">Will be saved as: <span className="font-semibold text-gray-700">Vehicles - {vehicleMake}</span></p>}
                 </div>
               )}
 
               {/* Location */}
               <div>
-                <Label className="flex items-center gap-2 mb-2">
-                  <MapPin className="w-4 h-4" />Location
-                </Label>
-                <Select
-                  value={formData.location}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, location: value }))}
-                >
+                <Label className="flex items-center gap-2 mb-2"><MapPin className="w-4 h-4" />Location</Label>
+                <Select value={formData.location} onValueChange={(value) => setFormData(prev => ({ ...prev, location: value }))}>
                   <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
-                  <SelectContent>
-                    {LOCATIONS.map((loc) => (
-                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectContent>{LOCATIONS.map((loc) => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
 
               {/* Listing Type */}
               <div>
-                <Label className="flex items-center gap-2 mb-2">
-                  <ArrowRightLeft className="w-4 h-4" />Listing Type
-                </Label>
+                <Label className="flex items-center gap-2 mb-2"><ArrowRightLeft className="w-4 h-4" />Listing Type</Label>
                 <div className="grid grid-cols-3 gap-3">
                   {LISTING_TYPES.map((type) => (
                     <button
@@ -462,17 +351,9 @@ export default function CreateListingPage() {
                         let newTitle = prev.title;
                         if (type.value === 'FREE' && !prev.title.startsWith('FREE - ')) newTitle = 'FREE - ' + prev.title;
                         if (type.value !== 'FREE' && prev.title.startsWith('FREE - ')) newTitle = prev.title.replace('FREE - ', '');
-                        return {
-                          ...prev,
-                          listingType: type.value,
-                          title: newTitle,
-                          ...(type.value === 'FREE' || type.value === 'SWAP' ? { price: '' } : {}),
-                        };
+                        return { ...prev, listingType: type.value, title: newTitle, ...(type.value === 'FREE' || type.value === 'SWAP' ? { price: '' } : {}) };
                       })}
-                      className={cn(
-                        'p-3 rounded-lg border-2 transition-all text-left',
-                        formData.listingType === type.value ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'
-                      )}
+                      className={cn('p-3 rounded-lg border-2 transition-all text-left', formData.listingType === type.value ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30')}
                     >
                       <type.icon className={cn('w-5 h-5 mb-1', formData.listingType === type.value ? 'text-primary' : 'text-muted-foreground')} />
                       <div className="font-medium text-sm">{type.label}</div>
@@ -486,42 +367,32 @@ export default function CreateListingPage() {
               {(formData.listingType === 'SELL' || formData.listingType === 'BOTH') && (
                 <div>
                   <Label htmlFor="price" className="flex items-center gap-2 mb-2">
-                    <DollarSign className="w-4 h-4" />
-                    {isHouseLand && houseTransactionType === 'For Rent' ? 'Monthly Rent (TTD)' : 'Price (TTD)'}
+                    <DollarSign className="w-4 h-4" />{isHouseLand && houseTransactionType === 'For Rent' ? 'Monthly Rent (TTD)' : 'Price (TTD)'}
                   </Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.price}
-                    onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                  />
+                  <Input id="price" type="number" min="0" step="0.01" placeholder="0.00" value={formData.price} onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))} />
                 </div>
               )}
 
               {/* Swap Terms */}
               {(formData.listingType === 'SWAP' || formData.listingType === 'BOTH') && (
                 <div>
-                  <Label htmlFor="swapTerms" className="flex items-center gap-2 mb-2">
-                    <ArrowRightLeft className="w-4 h-4" />What would you swap for?
-                  </Label>
+                  <Label htmlFor="swapTerms" className="flex items-center gap-2 mb-2"><ArrowRightLeft className="w-4 h-4" />What would you swap for?</Label>
                   <Textarea
                     id="swapTerms"
                     placeholder="Describe what items you'd accept in trade..."
                     value={formData.swapTerms}
                     onChange={(e) => setFormData(prev => ({ ...prev, swapTerms: e.target.value }))}
                     rows={2}
+                    minLength={3}
+                    maxLength={500}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">{formData.swapTerms.length}/500 characters</p>
                 </div>
               )}
 
               {/* Submit */}
               <div className="flex gap-4 pt-4">
-                <Button type="button" variant="outline" onClick={() => router.push('/dashboard')} disabled={submitting} className="flex-1">
-                  Cancel
-                </Button>
+                <Button type="button" variant="outline" onClick={() => router.push('/dashboard')} disabled={submitting} className="flex-1">Cancel</Button>
                 <Button type="submit" disabled={submitting} className="flex-1">
                   {submitting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Creating...</> : 'Create Listing'}
                 </Button>
