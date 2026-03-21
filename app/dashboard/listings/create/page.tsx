@@ -87,10 +87,8 @@ export default function CreateListingPage() {
     swapTerms: '',
   });
 
-  // House & Land sub-selections
   const [houseLandSubcategory, setHouseLandSubcategory] = useState('');
   const [houseTransactionType, setHouseTransactionType] = useState('');
-  // Vehicles sub-selection
   const [vehicleMake, setVehicleMake] = useState('');
 
   const [images, setImages] = useState<string[]>([]);
@@ -100,7 +98,6 @@ export default function CreateListingPage() {
   const isHouseLand = formData.category === 'House & Land';
   const isVehicles = formData.category === 'Vehicles';
 
-  // Build the final category string that gets saved
   const getFinalCategory = () => {
     if (isHouseLand) {
       if (houseLandSubcategory === 'House' && houseTransactionType) {
@@ -115,7 +112,6 @@ export default function CreateListingPage() {
     return formData.category;
   };
 
-  // Reset sub-selections when category changes
   useEffect(() => {
     if (!isHouseLand) {
       setHouseLandSubcategory('');
@@ -126,7 +122,6 @@ export default function CreateListingPage() {
     }
   }, [formData.category, isHouseLand, isVehicles]);
 
-  // Reset house transaction type when subcategory changes
   useEffect(() => {
     if (houseLandSubcategory !== 'House') {
       setHouseTransactionType('');
@@ -205,10 +200,11 @@ export default function CreateListingPage() {
     e.preventDefault();
 
     if (!formData.title.trim()) { toast.error('Please enter a title'); return; }
+    if (formData.title.trim().length < 3) { toast.error('Title must be between 3 and 50 characters'); return; }
+    if (formData.title.trim().length > 50) { toast.error('Title must be between 3 and 50 characters'); return; }
     if (!formData.description.trim()) { toast.error('Please enter a description'); return; }
     if (!formData.category) { toast.error('Please select a category'); return; }
 
-    // Validate House & Land sub-selections
     if (isHouseLand) {
       if (!houseLandSubcategory) { toast.error('Please select House or Land'); return; }
       if (houseLandSubcategory === 'House' && !houseTransactionType) {
@@ -216,7 +212,6 @@ export default function CreateListingPage() {
       }
     }
 
-    // Validate Vehicles make
     if (isVehicles && !vehicleMake) {
       toast.error('Please select a vehicle make'); return;
     }
@@ -311,11 +306,15 @@ export default function CreateListingPage() {
                 </Label>
                 <Input
                   id="title"
-                  placeholder={formData.listingType === 'FREE' ? 'FREE - What item are you giving away?' : 'What are you selling/swapping?'}
+                  placeholder="What are you selling, swapping or giving free?"
                   value={formData.title}
                   onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  maxLength={100}
+                  minLength={3}
+                  maxLength={50}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formData.title.length}/50 characters
+                </p>
               </div>
 
               {/* Description */}
@@ -374,8 +373,6 @@ export default function CreateListingPage() {
                   <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                     🏠 House & Land Details
                   </p>
-
-                  {/* House or Land */}
                   <div>
                     <Label className="text-sm mb-2 block">Property Type</Label>
                     <Select value={houseLandSubcategory} onValueChange={setHouseLandSubcategory}>
@@ -387,8 +384,6 @@ export default function CreateListingPage() {
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {/* For Sale or For Rent — only shown when House is selected */}
                   {houseLandSubcategory === 'House' && (
                     <div>
                       <Label className="text-sm mb-2 block">Transaction Type</Label>
@@ -402,8 +397,6 @@ export default function CreateListingPage() {
                       </Select>
                     </div>
                   )}
-
-                  {/* Summary label */}
                   {getFinalCategory() !== 'House & Land' && (
                     <p className="text-xs text-gray-500">
                       Will be saved as: <span className="font-semibold text-gray-700">{getFinalCategory()}</span>
