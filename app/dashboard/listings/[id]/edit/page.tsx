@@ -6,19 +6,8 @@ import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
-  ArrowLeft,
-  Upload,
-  X,
-  Loader2,
-  ImagePlus,
-  Package,
-  DollarSign,
-  MapPin,
-  FileText,
-  Tag,
-  ArrowRightLeft,
-  GripVertical,
-  Gift,
+  ArrowLeft, Upload, X, Loader2, ImagePlus, Package,
+  DollarSign, MapPin, FileText, Tag, ArrowRightLeft, GripVertical, Gift,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,38 +15,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 const CATEGORIES = [
-  'Swaps',
-  'Free Items',
-  'Beauty & Personal Care',
-  'Electronics',
-  'Vehicles',
-  'Auto Parts & Accessories',
-  'Real Estate',
-  'Construction Materials',
-  'Home & Garden',
-  'Furniture',
-  'Appliances',
-  'Fashion',
-  'Sports & Outdoors',
-  'Books & Education',
-  'Kids & Baby',
-  'Services',
-  'Food & Catering',
-  'Business & Industrial',
-  'Events & Tickets',
-  'Pets & Livestock',
-  'Art & Collectibles',
-  'Other',
+  'Swaps', 'Free Items', 'Beauty & Personal Care', 'Electronics', 'Vehicles',
+  'Auto Parts & Accessories', 'Real Estate', 'Construction Materials',
+  'Home & Garden', 'Furniture', 'Appliances', 'Fashion', 'Sports & Outdoors',
+  'Books & Education', 'Kids & Baby', 'Services', 'Food & Catering',
+  'Business & Industrial', 'Events & Tickets', 'Pets & Livestock',
+  'Art & Collectibles', 'Other',
 ];
 
 const CONDITIONS = [
@@ -113,12 +82,7 @@ type Listing = {
   publishedAt: string | null;
   expiresAt: string | null;
   activatedAt: string | null;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    tier: string;
-  };
+  user: { id: string; name: string; email: string; tier: string; };
 };
 
 export default function EditListingPage() {
@@ -146,9 +110,7 @@ export default function EditListingPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (listingId && session?.user) {
-      loadListing();
-    }
+    if (listingId && session?.user) loadListing();
   }, [listingId, session]);
 
   const loadListing = async () => {
@@ -210,19 +172,14 @@ export default function EditListingPage() {
     );
   }
 
-  if (status === 'unauthenticated') {
-    router.push('/auth/login');
-    return null;
-  }
+  if (status === 'unauthenticated') { router.push('/auth/login'); return null; }
 
   if (!listing) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">Listing not found</p>
-          <Link href="/dashboard" className="text-primary hover:underline mt-2 inline-block">
-            Back to Dashboard
-          </Link>
+          <Link href="/dashboard" className="text-primary hover:underline mt-2 inline-block">Back to Dashboard</Link>
         </div>
       </div>
     );
@@ -231,36 +188,25 @@ export default function EditListingPage() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
     const remainingSlots = MAX_IMAGES - images.length;
-    if (remainingSlots <= 0) {
-      toast.error(`Maximum ${MAX_IMAGES} images allowed`);
-      return;
-    }
-
+    if (remainingSlots <= 0) { toast.error(`Maximum ${MAX_IMAGES} images allowed`); return; }
     const filesToUpload = Array.from(files).slice(0, remainingSlots);
     setUploading(true);
-
     try {
       for (const file of filesToUpload) {
         if (!file.type.startsWith('image/')) { toast.error(`${file.name} is not an image`); continue; }
         if (file.size > 10 * 1024 * 1024) { toast.error(`${file.name} is too large (max 10MB)`); continue; }
-
         const presignedRes = await fetch('/api/upload/presigned', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName: file.name, contentType: file.type, isPublic: true }),
         });
-
         if (!presignedRes.ok) throw new Error('Failed to get upload URL');
-
-        const { uploadUrl, cloud_storage_path } = await presignedRes.json();
+        const { uploadUrl } = await presignedRes.json();
         const uploadHeaders: HeadersInit = { 'Content-Type': file.type };
         if (uploadUrl.includes('content-disposition')) uploadHeaders['Content-Disposition'] = 'attachment';
-
         const uploadRes = await fetch(uploadUrl, { method: 'PUT', headers: uploadHeaders, body: file });
         if (!uploadRes.ok) throw new Error('Failed to upload image');
-
         const publicUrl = `https://i.ytimg.com/vi/OCAHPLWG4kI/maxresdefault.jpg`;
         setImages(prev => [...prev, publicUrl]);
       }
@@ -274,9 +220,7 @@ export default function EditListingPage() {
     }
   };
 
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
-  };
+  const removeImage = (index: number) => setImages(prev => prev.filter((_, i) => i !== index));
 
   const moveImage = (index: number, direction: 'up' | 'down') => {
     if ((direction === 'up' && index === 0) || (direction === 'down' && index === images.length - 1)) return;
@@ -288,20 +232,19 @@ export default function EditListingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!formData.title.trim()) { toast.error('Please enter a title'); return; }
     if (formData.title.trim().length < 3) { toast.error('Title must be between 3 and 50 characters'); return; }
     if (formData.title.trim().length > 50) { toast.error('Title must be between 3 and 50 characters'); return; }
     if (!formData.description.trim()) { toast.error('Please enter a description'); return; }
+    if (formData.description.trim().length > 500) { toast.error('Description cannot exceed 500 characters'); return; }
     if (!formData.category) { toast.error('Please select a category'); return; }
     if (!formData.condition) { toast.error('Please select a condition'); return; }
     if (!formData.location) { toast.error('Please select a location'); return; }
-    if ((formData.listingType === 'SELL' || formData.listingType === 'BOTH') && !formData.price) {
-      toast.error('Please enter a price'); return;
-    }
+    if ((formData.listingType === 'SELL' || formData.listingType === 'BOTH') && !formData.price) { toast.error('Please enter a price'); return; }
+    if ((formData.listingType === 'SWAP' || formData.listingType === 'BOTH') && formData.swapTerms.trim().length > 0 && formData.swapTerms.trim().length < 3) { toast.error('Swap terms must be between 3 and 500 characters'); return; }
+    if ((formData.listingType === 'SWAP' || formData.listingType === 'BOTH') && formData.swapTerms.trim().length > 500) { toast.error('Swap terms must be between 3 and 500 characters'); return; }
 
     setSubmitting(true);
-
     try {
       const payload: Record<string, any> = {
         title: formData.title.trim(),
@@ -313,13 +256,11 @@ export default function EditListingPage() {
         currency: formData.currency,
         images,
       };
-
       if (formData.listingType === 'SELL' || formData.listingType === 'BOTH') {
         payload.price = parseFloat(formData.price) || null;
       } else {
         payload.price = null;
       }
-
       if (formData.listingType === 'SWAP' || formData.listingType === 'BOTH') {
         payload.swapTerms = formData.swapTerms.trim() || null;
       } else {
@@ -331,12 +272,7 @@ export default function EditListingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Failed to update listing');
-      }
-
+      if (!res.ok) { const error = await res.json(); throw new Error(error.error || 'Failed to update listing'); }
       toast.success('Listing updated successfully');
       router.push(`/dashboard/listings/${listingId}`);
     } catch (error) {
@@ -353,16 +289,12 @@ export default function EditListingPage() {
         <Link href={`/dashboard/listings/${listingId}`} className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition mb-6">
           <ArrowLeft className="w-4 h-4" />Back to Listing
         </Link>
-
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="w-6 h-6" />Edit Listing
-            </CardTitle>
+            <CardTitle className="flex items-center gap-2"><Package className="w-6 h-6" />Edit Listing</CardTitle>
             {listing.status && (
               <p className="text-sm text-muted-foreground">
-                Status: <span className="font-medium">{listing.status.replace('_', ' ')}</span>
-                {' • '}Editing will not change the listing status.
+                Status: <span className="font-medium">{listing.status.replace('_', ' ')}</span>{' • '}Editing will not change the listing status.
               </p>
             )}
           </CardHeader>
@@ -371,26 +303,16 @@ export default function EditListingPage() {
 
               {/* Images */}
               <div>
-                <Label className="flex items-center gap-2 mb-2">
-                  <ImagePlus className="w-4 h-4" />Photos (up to {MAX_IMAGES})
-                </Label>
+                <Label className="flex items-center gap-2 mb-2"><ImagePlus className="w-4 h-4" />Photos (up to {MAX_IMAGES})</Label>
                 <div className="grid grid-cols-4 gap-3">
                   {images.map((img, index) => (
                     <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-muted group">
                       <Image src={img} alt={`Image ${index + 1}`} fill className="object-cover" />
-                      {index === 0 && (
-                        <span className="absolute top-1 left-1 text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">Main</span>
-                      )}
+                      {index === 0 && <span className="absolute top-1 left-1 text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">Main</span>}
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                        {index > 0 && (
-                          <button type="button" onClick={() => moveImage(index, 'up')} className="p-1 bg-white/80 text-gray-800 rounded hover:bg-white" title="Move left">←</button>
-                        )}
-                        <button type="button" onClick={() => removeImage(index)} className="p-1 bg-red-500 text-white rounded hover:bg-red-600">
-                          <X className="w-4 h-4" />
-                        </button>
-                        {index < images.length - 1 && (
-                          <button type="button" onClick={() => moveImage(index, 'down')} className="p-1 bg-white/80 text-gray-800 rounded hover:bg-white" title="Move right">→</button>
-                        )}
+                        {index > 0 && <button type="button" onClick={() => moveImage(index, 'up')} className="p-1 bg-white/80 text-gray-800 rounded hover:bg-white" title="Move left">←</button>}
+                        <button type="button" onClick={() => removeImage(index)} className="p-1 bg-red-500 text-white rounded hover:bg-red-600"><X className="w-4 h-4" /></button>
+                        {index < images.length - 1 && <button type="button" onClick={() => moveImage(index, 'down')} className="p-1 bg-white/80 text-gray-800 rounded hover:bg-white" title="Move right">→</button>}
                       </div>
                     </div>
                   ))}
@@ -406,9 +328,7 @@ export default function EditListingPage() {
 
               {/* Title */}
               <div>
-                <Label htmlFor="title" className="flex items-center gap-2 mb-2">
-                  <FileText className="w-4 h-4" />Title
-                </Label>
+                <Label htmlFor="title" className="flex items-center gap-2 mb-2"><FileText className="w-4 h-4" />Title</Label>
                 <Input
                   id="title"
                   placeholder="What are you selling, swapping or giving free?"
@@ -417,83 +337,64 @@ export default function EditListingPage() {
                   minLength={3}
                   maxLength={50}
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formData.title.length}/50 characters
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">{formData.title.length}/50 characters</p>
               </div>
 
               {/* Description */}
               <div>
-                <Label htmlFor="description" className="flex items-center gap-2 mb-2">
-                  <FileText className="w-4 h-4" />Description
-                </Label>
+                <Label htmlFor="description" className="flex items-center gap-2 mb-2"><FileText className="w-4 h-4" />Description</Label>
                 <Textarea
                   id="description"
                   placeholder="Describe your item in detail..."
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   rows={4}
+                  maxLength={500}
                 />
+                <p className="text-xs text-muted-foreground mt-1">{formData.description.length}/500 characters</p>
               </div>
 
               {/* Category & Condition */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="flex items-center gap-2 mb-2">
-                    <Tag className="w-4 h-4" />Category
-                  </Label>
+                  <Label className="flex items-center gap-2 mb-2"><Tag className="w-4 h-4" />Category</Label>
                   <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
                     <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{CATEGORIES.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label className="flex items-center gap-2 mb-2">
-                    <Package className="w-4 h-4" />Condition
-                  </Label>
+                  <Label className="flex items-center gap-2 mb-2"><Package className="w-4 h-4" />Condition</Label>
                   <Select value={formData.condition} onValueChange={(value) => setFormData(prev => ({ ...prev, condition: value }))}>
                     <SelectTrigger><SelectValue placeholder="Select condition" /></SelectTrigger>
-                    <SelectContent>
-                      {CONDITIONS.map((cond) => <SelectItem key={cond.value} value={cond.value}>{cond.label}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{CONDITIONS.map((cond) => <SelectItem key={cond.value} value={cond.value}>{cond.label}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
 
               {/* Location */}
               <div>
-                <Label className="flex items-center gap-2 mb-2">
-                  <MapPin className="w-4 h-4" />Location
-                </Label>
+                <Label className="flex items-center gap-2 mb-2"><MapPin className="w-4 h-4" />Location</Label>
                 <Select value={formData.location} onValueChange={(value) => setFormData(prev => ({ ...prev, location: value }))}>
                   <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
-                  <SelectContent>
-                    {LOCATIONS.map((loc) => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{LOCATIONS.map((loc) => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
 
               {/* Listing Type */}
               <div>
-                <Label className="flex items-center gap-2 mb-2">
-                  <ArrowRightLeft className="w-4 h-4" />Listing Type
-                </Label>
+                <Label className="flex items-center gap-2 mb-2"><ArrowRightLeft className="w-4 h-4" />Listing Type</Label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {LISTING_TYPES.map((type) => (
                     <button
                       key={type.value}
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, listingType: type.value }))}
-                      className={cn(
-                        'p-3 rounded-lg border-2 transition-all text-left',
-                        formData.listingType === type.value ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'
-                      )}
+                      className={cn('p-3 rounded-lg border-2 transition-all text-left', formData.listingType === type.value ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30')}
                     >
-                      <type.icon className={cn('w-5 h-5 mb-1', formData.listingType === type.value ? 'text-primary' : 'text-muted-foreground')} />
-                      <div className="font-medium text-sm">{type.label}</div>
-                      <div className="text-xs text-muted-foreground">{type.description}</div>
+                      <type.icon className={cn('w-5 h-5 mb-1', formData.listingType === type.value ? 'text-primary' : type.value === 'FREE' ? 'text-green-600' : 'text-muted-foreground')} />
+                      <div className={cn('font-medium text-sm', type.value === 'FREE' ? 'text-green-600' : '')}>{type.label}</div>
+                      <div className={cn('text-xs', type.value === 'FREE' ? 'text-green-500' : 'text-muted-foreground')}>{type.description}</div>
                     </button>
                   ))}
                 </div>
@@ -502,18 +403,8 @@ export default function EditListingPage() {
               {/* Price */}
               {(formData.listingType === 'SELL' || formData.listingType === 'BOTH') && (
                 <div>
-                  <Label htmlFor="price" className="flex items-center gap-2 mb-2">
-                    <DollarSign className="w-4 h-4" />Price (TTD)
-                  </Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.price}
-                    onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                  />
+                  <Label htmlFor="price" className="flex items-center gap-2 mb-2"><DollarSign className="w-4 h-4" />Price (TTD)</Label>
+                  <Input id="price" type="number" min="0" step="0.01" placeholder="0.00" value={formData.price} onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))} />
                 </div>
               )}
 
@@ -531,24 +422,23 @@ export default function EditListingPage() {
               {/* Swap Terms */}
               {(formData.listingType === 'SWAP' || formData.listingType === 'BOTH') && (
                 <div>
-                  <Label htmlFor="swapTerms" className="flex items-center gap-2 mb-2">
-                    <ArrowRightLeft className="w-4 h-4" />What would you swap for?
-                  </Label>
+                  <Label htmlFor="swapTerms" className="flex items-center gap-2 mb-2"><ArrowRightLeft className="w-4 h-4" />What would you swap for?</Label>
                   <Textarea
                     id="swapTerms"
                     placeholder="Describe what items you'd accept in trade..."
                     value={formData.swapTerms}
                     onChange={(e) => setFormData(prev => ({ ...prev, swapTerms: e.target.value }))}
                     rows={2}
+                    minLength={3}
+                    maxLength={500}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">{formData.swapTerms.length}/500 characters</p>
                 </div>
               )}
 
               {/* Submit */}
               <div className="flex gap-4 pt-4">
-                <Button type="button" variant="outline" onClick={() => router.push(`/dashboard/listings/${listingId}`)} disabled={submitting} className="flex-1">
-                  Cancel
-                </Button>
+                <Button type="button" variant="outline" onClick={() => router.push(`/dashboard/listings/${listingId}`)} disabled={submitting} className="flex-1">Cancel</Button>
                 <Button type="submit" disabled={submitting} className="flex-1">
                   {submitting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : 'Save Changes'}
                 </Button>
