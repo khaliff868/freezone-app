@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, MapPin, Tag, Clock, User, Star, RefreshCcw, Edit, Trash2, CreditCard, AlertCircle, MessageSquare, ArrowRightLeft, X, Check, Loader2, Building, Landmark, Copy, Upload, ExternalLink, Heart, ShoppingBag } from 'lucide-react';
