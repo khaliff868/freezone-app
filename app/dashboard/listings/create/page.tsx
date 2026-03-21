@@ -32,12 +32,28 @@ const CATEGORIES = [
 const HOUSE_LAND_SUBCATEGORIES = ['House', 'Land'];
 const HOUSE_TRANSACTION_TYPES = ['For Sale', 'For Rent'];
 
-const VEHICLE_MAKES = [
-  'Audi', 'BMW', 'Chevrolet', 'Dodge', 'Ford', 'Honda', 'Hyundai', 'Isuzu',
-  'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Mazda', 'Mercedes-Benz', 'Mini',
-  'Mitsubishi', 'Nissan', 'Peugeot', 'Porsche', 'Subaru', 'Suzuki', 'Toyota',
-  'Volkswagen', 'Volvo', 'Other',
-];
+const VEHICLE_HIERARCHY: Record<string, string[]> = {
+  Cars: [
+    'Audi', 'BMW', 'Chevrolet', 'Dodge', 'Ford', 'Honda', 'Hyundai', 'Isuzu',
+    'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Mazda', 'Mercedes-Benz', 'Mini',
+    'Mitsubishi', 'Nissan', 'Other', 'Peugeot', 'Porsche', 'Subaru', 'Suzuki',
+    'Toyota', 'Volkswagen', 'Volvo',
+  ],
+  SUVs: [
+    'Audi', 'BMW', 'Chevrolet', 'Ford', 'Honda', 'Hyundai', 'Isuzu', 'Jeep',
+    'Kia', 'Land Rover', 'Lexus', 'Mazda', 'Mercedes-Benz', 'Mitsubishi',
+    'Nissan', 'Other', 'Subaru', 'Suzuki', 'Toyota', 'Volkswagen',
+  ],
+  Vans: [
+    'Ford', 'Hyundai', 'Isuzu', 'Kia', 'Mercedes-Benz', 'Mitsubishi',
+    'Nissan', 'Other', 'Peugeot', 'Suzuki', 'Toyota', 'Volkswagen',
+  ],
+  Trucks: [
+    'Chevrolet', 'Dodge', 'Ford', 'Isuzu', 'Jeep', 'Mazda', 'Mercedes-Benz',
+    'Mitsubishi', 'Nissan', 'Other', 'Toyota', 'Volkswagen',
+  ],
+};
+const VEHICLE_TYPES = Object.keys(VEHICLE_HIERARCHY);
 
 const CONDITIONS = [
   { value: 'NEW', label: 'New', description: 'Brand new, never used' },
@@ -76,19 +92,13 @@ export default function CreateListingPage() {
   const searchParams = useSearchParams();
 
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: '',
-    condition: '',
-    listingType: 'SELL',
-    price: '',
-    currency: 'TTD',
-    location: '',
-    swapTerms: '',
+    title: '', description: '', category: '', condition: '',
+    listingType: 'SELL', price: '', currency: 'TTD', location: '', swapTerms: '',
   });
 
   const [houseLandSubcategory, setHouseLandSubcategory] = useState('');
   const [houseTransactionType, setHouseTransactionType] = useState('');
+  const [vehicleType, setVehicleType] = useState('');
   const [vehicleMake, setVehicleMake] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -96,6 +106,7 @@ export default function CreateListingPage() {
 
   const isHouseLand = formData.category === 'House & Land';
   const isVehicles = formData.category === 'Vehicles';
+  const availableMakes = vehicleType ? VEHICLE_HIERARCHY[vehicleType] || [] : [];
 
   const getFinalCategory = () => {
     if (isHouseLand) {
@@ -103,18 +114,25 @@ export default function CreateListingPage() {
       if (houseLandSubcategory === 'Land') return 'House & Land - Land';
       return 'House & Land';
     }
-    if (isVehicles && vehicleMake) return `Vehicles - ${vehicleMake}`;
+    if (isVehicles) {
+      if (vehicleType && vehicleMake) return `Vehicles - ${vehicleType} - ${vehicleMake}`;
+      if (vehicleType) return `Vehicles - ${vehicleType}`;
+      return 'Vehicles';
+    }
     return formData.category;
   };
 
   useEffect(() => {
     if (!isHouseLand) { setHouseLandSubcategory(''); setHouseTransactionType(''); }
-    if (!isVehicles) setVehicleMake('');
+    if (!isVehicles) { setVehicleType(''); setVehicleMake(''); }
   }, [formData.category, isHouseLand, isVehicles]);
 
   useEffect(() => {
     if (houseLandSubcategory !== 'House') setHouseTransactionType('');
   }, [houseLandSubcategory]);
+
+  // Reset make when type changes
+  useEffect(() => { setVehicleMake(''); }, [vehicleType]);
 
   useEffect(() => {
     const typeParam = searchParams.get('type');
@@ -128,10 +146,7 @@ export default function CreateListingPage() {
     }
   }, [searchParams]);
 
-  if (status === 'loading') {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
-  }
-
+  if (status === 'loading') return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (status === 'unauthenticated') { router.push('/auth/login'); return null; }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,7 +191,10 @@ export default function CreateListingPage() {
       if (!houseLandSubcategory) { toast.error('Please select House or Land'); return; }
       if (houseLandSubcategory === 'House' && !houseTransactionType) { toast.error('Please select For Sale or For Rent'); return; }
     }
-    if (isVehicles && !vehicleMake) { toast.error('Please select a vehicle make'); return; }
+    if (isVehicles) {
+      if (!vehicleType) { toast.error('Please select a vehicle type'); return; }
+      if (!vehicleMake) { toast.error('Please select a vehicle make'); return; }
+    }
     if (!formData.condition) { toast.error('Please select a condition'); return; }
     if (!formData.location) { toast.error('Please select a location'); return; }
     if ((formData.listingType === 'SELL' || formData.listingType === 'BOTH') && !formData.price) { toast.error('Please enter a price'); return; }
@@ -212,9 +230,7 @@ export default function CreateListingPage() {
         </Link>
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="w-6 h-6" />Create New Listing
-            </CardTitle>
+            <CardTitle className="flex items-center gap-2"><Package className="w-6 h-6" />Create New Listing</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -314,18 +330,29 @@ export default function CreateListingPage() {
                 </div>
               )}
 
-              {/* Vehicles */}
+              {/* Vehicles — 2-step: type then make */}
               {isVehicles && (
                 <div className="space-y-4 p-4 bg-trini-red/5 border border-trini-red/20 rounded-xl">
                   <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">🚗 Vehicle Details</p>
                   <div>
-                    <Label className="text-sm mb-2 block">Make / Brand</Label>
-                    <Select value={vehicleMake} onValueChange={setVehicleMake}>
-                      <SelectTrigger><SelectValue placeholder="Select vehicle make" /></SelectTrigger>
-                      <SelectContent>{VEHICLE_MAKES.map((make) => <SelectItem key={make} value={make}>{make}</SelectItem>)}</SelectContent>
+                    <Label className="text-sm mb-2 block">Vehicle Type</Label>
+                    <Select value={vehicleType} onValueChange={setVehicleType}>
+                      <SelectTrigger><SelectValue placeholder="Select vehicle type" /></SelectTrigger>
+                      <SelectContent>{VEHICLE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  {vehicleMake && <p className="text-xs text-gray-500">Will be saved as: <span className="font-semibold text-gray-700">Vehicles - {vehicleMake}</span></p>}
+                  {vehicleType && (
+                    <div>
+                      <Label className="text-sm mb-2 block">Make / Brand</Label>
+                      <Select value={vehicleMake} onValueChange={setVehicleMake}>
+                        <SelectTrigger><SelectValue placeholder="Select make" /></SelectTrigger>
+                        <SelectContent>{availableMakes.map((make) => <SelectItem key={make} value={make}>{make}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {vehicleType && vehicleMake && (
+                    <p className="text-xs text-gray-500">Will be saved as: <span className="font-semibold text-gray-700">Vehicles › {vehicleType} › {vehicleMake}</span></p>
+                  )}
                 </div>
               )}
 
