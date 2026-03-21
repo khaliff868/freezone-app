@@ -7,69 +7,30 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
-  Search,
-  Filter,
-  Grid,
-  List,
-  MapPin,
-  Tag,
-  Package,
-  ChevronDown,
-  X,
-  Eye,
-  Star,
-  RefreshCw,
-  ShoppingBag,
-  Heart,
-  Loader2,
-  Clock,
-  Zap,
-  Activity,
-  Users,
-  ArrowRight,
+  Search, Filter, Grid, List, MapPin, Tag, Package, ChevronDown, X,
+  Eye, Star, RefreshCw, ShoppingBag, Heart, Loader2, Clock, Zap,
+  Activity, Users, ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import BannerAd from '@/components/shared/banner-ad';
 import AdBanner from '@/components/shared/ad-banner';
 
-interface SearchSuggestion {
-  id: string;
-  title: string;
-  category: string;
-  price: number | null;
-}
-
+interface SearchSuggestion { id: string; title: string; category: string; price: number | null; }
 interface Listing {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  condition: string;
-  location: string;
-  price: number | null;
-  listingType: 'SELL' | 'SWAP' | 'BOTH';
-  images: string[];
-  views: number;
-  featured: boolean;
-  boosted: boolean;
+  id: string; title: string; description: string; category: string; condition: string;
+  location: string; price: number | null; listingType: 'SELL' | 'SWAP' | 'BOTH';
+  images: string[]; views: number; featured: boolean; boosted: boolean;
   featuredStatus?: 'ACTIVE' | 'NONE';
   user: { id: string; name: string; avatar: string | null; location: string | null };
   createdAt: string;
 }
-
 interface SearchResult {
   listings: Listing[];
   pagination: { total: number; page: number; limit: number; totalPages: number };
-  filters: {
-    categories: { name: string; count: number }[];
-    locations: { name: string; count: number }[];
-  };
+  filters: { categories: { name: string; count: number }[]; locations: { name: string; count: number }[]; };
 }
-
 interface HomepageSectionsData {
-  featured: Listing[];
-  trending: Listing[];
-  swapMatches: Listing[];
+  featured: Listing[]; trending: Listing[]; swapMatches: Listing[];
   recentActivity: { type: string; message: string; timestamp: string }[];
 }
 
@@ -80,7 +41,7 @@ const CATEGORIES = [
   { name: 'Electronics', emoji: '📱', color: 'from-caribbean-teal to-ocean-blue' },
   { name: 'Vehicles', emoji: '🚗', color: 'from-trini-red to-tropical-orange' },
   { name: 'Auto Parts & Accessories', emoji: '🔧', color: 'from-gray-600 to-gray-800' },
-  { name: 'Real Estate', emoji: '🏠', color: 'from-trini-gold to-tropical-orange' },
+  { name: 'House & Land', emoji: '🏠', color: 'from-trini-gold to-tropical-orange' },
   { name: 'Construction Materials', emoji: '🧱', color: 'from-tropical-orange to-trini-red' },
   { name: 'Home & Garden', emoji: '🏡', color: 'from-island-green to-palm-green' },
   { name: 'Furniture', emoji: '🪑', color: 'from-tropical-coral to-trini-gold' },
@@ -98,8 +59,6 @@ const CATEGORIES = [
   { name: 'Other', emoji: '📦', color: 'from-gray-500 to-gray-600' },
 ];
 
-const CONDITIONS = ['NEW', 'LIKE_NEW', 'GOOD', 'FAIR', 'POOR'];
-const LISTING_TYPES = ['SELL', 'SWAP', 'BOTH'];
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest First' },
   { value: 'oldest', label: 'Oldest First' },
@@ -116,10 +75,8 @@ function BrowsePageInner() {
   const [results, setResults] = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showFilters, setShowFilters] = useState(false);
   const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set());
   const [togglingWishlist, setTogglingWishlist] = useState<string | null>(null);
-
   const [sectionsData, setSectionsData] = useState<HomepageSectionsData | null>(null);
   const [sectionsLoading, setSectionsLoading] = useState(true);
 
@@ -146,89 +103,52 @@ function BrowsePageInner() {
         const res = await fetch('/api/homepage/sections');
         if (res.ok) {
           const data = await res.json();
-          if (data.success) {
-            setSectionsData({
-              featured: data.data.featured || [],
-              trending: data.data.trending || [],
-              swapMatches: data.data.swapMatches || [],
-              recentActivity: data.data.recentActivity || [],
-            });
-          }
+          if (data.success) setSectionsData({ featured: data.data.featured || [], trending: data.data.trending || [], swapMatches: data.data.swapMatches || [], recentActivity: data.data.recentActivity || [] });
         }
-      } catch (error) {
-        console.error('Error fetching sections:', error);
-      } finally {
-        setSectionsLoading(false);
-      }
+      } catch (error) { console.error('Error fetching sections:', error); }
+      finally { setSectionsLoading(false); }
     };
     fetchSections();
   }, []);
 
   const fetchSuggestions = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    if (!searchQuery.trim()) { setSuggestions([]); setShowSuggestions(false); return; }
+    if (abortControllerRef.current) abortControllerRef.current.abort();
     abortControllerRef.current = new AbortController();
     setLoadingSuggestions(true);
     try {
-      const res = await fetch(
-        `/api/listings/search?q=${encodeURIComponent(searchQuery)}&limit=5`,
-        { signal: abortControllerRef.current.signal }
-      );
+      const res = await fetch(`/api/listings/search?q=${encodeURIComponent(searchQuery)}&limit=5`, { signal: abortControllerRef.current.signal });
       if (res.ok) {
         const data = await res.json();
-        const suggestionData: SearchSuggestion[] = data.listings.map((l: Listing) => ({
-          id: l.id,
-          title: l.title,
-          category: l.category,
-          price: l.price,
-        }));
-        setSuggestions(suggestionData);
+        setSuggestions(data.listings.map((l: Listing) => ({ id: l.id, title: l.title, category: l.category, price: l.price })));
         setShowSuggestions(true);
       }
     } catch (error: unknown) {
-      if (error instanceof Error && error.name !== 'AbortError') {
-        console.error('Error fetching suggestions:', error);
-      }
-    } finally {
-      setLoadingSuggestions(false);
-    }
+      if (error instanceof Error && error.name !== 'AbortError') console.error('Error fetching suggestions:', error);
+    } finally { setLoadingSuggestions(false); }
   }, []);
 
   const handleQueryChange = (value: string) => {
     setQuery(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      fetchSuggestions(value);
-    }, 300);
+    debounceRef.current = setTimeout(() => { fetchSuggestions(value); }, 300);
   };
 
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
-    setQuery(suggestion.title);
-    setShowSuggestions(false);
-    setPage(1);
+    setQuery(suggestion.title); setShowSuggestions(false); setPage(1);
     setTimeout(() => { fetchResults(); }, 0);
   };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-      }
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) setShowSuggestions(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowSuggestions(false);
-    };
+    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setShowSuggestions(false); };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
@@ -254,20 +174,12 @@ function BrowsePageInner() {
       params.set('sort', sortBy);
       params.set('page', page.toString());
       const res = await fetch(`/api/listings/search?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setResults(data);
-      }
-    } catch (error) {
-      console.error('Error fetching results:', error);
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) setResults(await res.json());
+    } catch (error) { console.error('Error fetching results:', error); }
+    finally { setLoading(false); }
   }, [query, category, listingType, condition, location, minPrice, maxPrice, sortBy, page]);
 
-  useEffect(() => {
-    fetchResults();
-  }, [fetchResults]);
+  useEffect(() => { fetchResults(); }, [fetchResults]);
 
   useEffect(() => {
     const fetchWishlist = async () => {
@@ -276,68 +188,49 @@ function BrowsePageInner() {
         const res = await fetch('/api/wishlist');
         if (res.ok) {
           const data = await res.json();
-          const ids = new Set<string>(data.wishlist?.map((item: any) => item.listing.id as string) || []);
-          setWishlistedIds(ids);
+          setWishlistedIds(new Set<string>(data.wishlist?.map((item: any) => item.listing.id as string) || []));
         }
-      } catch (error) {
-        console.error('Error fetching wishlist:', error);
-      }
+      } catch (error) { console.error('Error fetching wishlist:', error); }
     };
     fetchWishlist();
   }, [session?.user?.id]);
 
   const toggleWishlist = async (e: React.MouseEvent, listingId: string, sellerId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     if (!session?.user?.id) { toast.error('Please login to save items'); return; }
     if (session.user.id === sellerId) { toast.error("You can't wishlist your own listing"); return; }
     setTogglingWishlist(listingId);
     try {
       if (wishlistedIds.has(listingId)) {
         const res = await fetch(`/api/wishlist?listingId=${listingId}`, { method: 'DELETE' });
-        if (res.ok) {
-          setWishlistedIds(prev => { const next = new Set(prev); next.delete(listingId); return next; });
-          toast.success('Removed from wishlist');
-        }
+        if (res.ok) { setWishlistedIds(prev => { const next = new Set(prev); next.delete(listingId); return next; }); toast.success('Removed from wishlist'); }
       } else {
-        const res = await fetch('/api/wishlist', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ listingId }),
-        });
-        if (res.ok) {
-          setWishlistedIds(prev => new Set([...prev, listingId]));
-          toast.success('Added to wishlist');
-        }
+        const res = await fetch('/api/wishlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ listingId }) });
+        if (res.ok) { setWishlistedIds(prev => new Set([...prev, listingId])); toast.success('Added to wishlist'); }
       }
-    } catch (error) {
-      console.error('Error toggling wishlist:', error);
-      toast.error('Failed to update wishlist');
-    } finally {
-      setTogglingWishlist(null);
-    }
+    } catch (error) { toast.error('Failed to update wishlist'); }
+    finally { setTogglingWishlist(null); }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setShowSuggestions(false);
-    setPage(1);
-    fetchResults();
-  };
+  const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setShowSuggestions(false); setPage(1); fetchResults(); };
+  const clearFilters = () => { setQuery(''); setCategory(''); setListingType(''); setCondition(''); setLocation(''); setMinPrice(''); setMaxPrice(''); setSortBy('newest'); setPage(1); };
 
-  const clearFilters = () => {
-    setQuery(''); setCategory(''); setListingType(''); setCondition('');
-    setLocation(''); setMinPrice(''); setMaxPrice(''); setSortBy('newest'); setPage(1);
-  };
-
-  const getCategoryStyle = (cat: string) => {
-    const found = CATEGORIES.find((c) => c.name === cat);
-    return found ? found.color : 'from-gray-500 to-gray-600';
-  };
-
+  const getCategoryStyle = (cat: string) => CATEGORIES.find(c => c.name === cat)?.color || 'from-gray-500 to-gray-600';
   const getCategoryEmoji = (cat: string) => {
-    const found = CATEGORIES.find((c) => c.name === cat);
-    return found ? found.emoji : '📦';
+    // Handle subcategories
+    if (cat.startsWith('House & Land')) return '🏠';
+    return CATEGORIES.find(c => c.name === cat)?.emoji || '📦';
+  };
+
+  // Get count for a category — includes subcategories for House & Land
+  const getCategoryCount = (catName: string) => {
+    if (!results?.filters?.categories) return 0;
+    if (catName === 'House & Land') {
+      return results.filters.categories
+        .filter(c => c.name === 'House & Land' || c.name.startsWith('House & Land -'))
+        .reduce((sum, c) => sum + c.count, 0);
+    }
+    return results.filters.categories.find(c => c.name === catName)?.count || 0;
   };
 
   const activeFiltersCount = [category, listingType, condition, location, minPrice, maxPrice].filter(Boolean).length;
@@ -359,40 +252,27 @@ function BrowsePageInner() {
     if (minutes < 60) return `${minutes}m ago`;
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
+    return `${Math.floor(hours / 24)}d ago`;
   };
 
   const CompactListingCard = ({ listing, showSwapButton = false }: { listing: Listing; showSwapButton?: boolean }) => (
-    <Link
-      href={`/dashboard/listings/${listing.id}`}
-      className="flex gap-3 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition group"
-    >
+    <Link href={`/dashboard/listings/${listing.id}`} className="flex gap-3 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition group">
       <div className="w-16 h-16 rounded-lg bg-gray-100 dark:bg-white/10 flex-shrink-0 overflow-hidden">
-        {listing.images[0] ? (
-          <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Package className="w-6 h-6 text-gray-400" />
-          </div>
-        )}
+        {listing.images[0] ? <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Package className="w-6 h-6 text-gray-400" /></div>}
       </div>
       <div className="flex-1 min-w-0">
         <h4 className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1 group-hover:text-trini-red transition">{listing.title}</h4>
         <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{listing.location}</p>
         <div className="flex items-center justify-between mt-1">
-          {listing.price ? (
-            <span className="text-sm font-bold text-trini-red">${listing.price}</span>
-          ) : (
-            <span className="text-xs font-semibold text-tropical-purple">Swap</span>
-          )}
-          {showSwapButton && (listing.listingType === 'SWAP' || listing.listingType === 'BOTH') && (
-            <span className="text-xs px-2 py-0.5 bg-tropical-purple/10 text-tropical-purple rounded-full">Swap</span>
-          )}
+          {listing.price ? <span className="text-sm font-bold text-trini-red">${listing.price}</span> : <span className="text-xs font-semibold text-tropical-purple">Swap</span>}
+          {showSwapButton && (listing.listingType === 'SWAP' || listing.listingType === 'BOTH') && <span className="text-xs px-2 py-0.5 bg-tropical-purple/10 text-tropical-purple rounded-full">Swap</span>}
         </div>
       </div>
     </Link>
   );
+
+  // Display label for selected category
+  const categoryDisplayName = category.startsWith('House & Land') ? 'House & Land' : category;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -403,66 +283,54 @@ function BrowsePageInner() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 pt-6">
-        <AdBanner position="top" type="horizontal" />
-      </div>
-      <div className="max-w-7xl mx-auto px-6 pt-4">
-        <BannerAd placement="browse_top" />
-      </div>
+      <div className="max-w-7xl mx-auto px-6 pt-6"><AdBanner position="top" type="horizontal" /></div>
+      <div className="max-w-7xl mx-auto px-6 pt-4"><BannerAd placement="browse_top" /></div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="lg:hidden mb-6 space-y-4">
-          <AdBanner position="left" type="horizontal" />
-        </div>
+        <div className="lg:hidden mb-6 space-y-4"><AdBanner position="left" type="horizontal" /></div>
 
         <div className="flex gap-8">
+          {/* Left Sidebar — Categories */}
           <div className="w-64 flex-shrink-0 hidden lg:block">
             <div className="bg-white dark:bg-white/10 rounded-2xl p-5 sticky top-24 border border-gray-200 dark:border-transparent shadow-lg dark:shadow-none">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Tag className="w-5 h-5 text-trini-gold" />
-                Categories
+                <Tag className="w-5 h-5 text-trini-gold" />Categories
               </h2>
               <div className="space-y-1">
                 <button
                   onClick={() => { setCategory(''); setPage(1); }}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 font-medium ${
-                    category === '' ? 'bg-trini-gold text-black' : 'text-gray-700 dark:text-gray-100 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'
-                  }`}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 font-medium ${category === '' ? 'bg-trini-gold text-black' : 'text-gray-700 dark:text-gray-100 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'}`}
                 >
-                  <span>📋</span>
-                  <span>All Categories</span>
-                  {results?.filters?.categories && (
-                    <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${category === '' ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
-                      {results.pagination.total}
-                    </span>
-                  )}
+                  <span>📋</span><span>All Categories</span>
+                  <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${category === '' ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
+                    {results?.pagination.total || 0}
+                  </span>
                 </button>
                 {CATEGORIES.map((cat) => {
-                  const count = results?.filters?.categories?.find(c => c.name === cat.name)?.count || 0;
+                  const count = getCategoryCount(cat.name);
+                  const isActive = category === cat.name || (cat.name === 'House & Land' && category.startsWith('House & Land'));
                   return (
                     <button
                       key={cat.name}
                       onClick={() => { setCategory(cat.name); setPage(1); }}
-                      className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 font-medium ${
-                        category === cat.name ? 'bg-trini-gold text-black' : 'text-gray-700 dark:text-gray-100 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'
-                      }`}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 font-medium ${isActive ? 'bg-trini-gold text-black' : 'text-gray-700 dark:text-gray-100 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'}`}
                     >
                       <span>{cat.emoji}</span>
                       <span className="truncate">{cat.name}</span>
-                      <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${category === cat.name ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
+                      <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${isActive ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
                         {count}
                       </span>
                     </button>
                   );
                 })}
               </div>
-              <div className="mt-6">
-                <AdBanner position="left" type="vertical" />
-              </div>
+              <div className="mt-6"><AdBanner position="left" type="vertical" /></div>
             </div>
           </div>
 
+          {/* Main Content */}
           <div className="flex-1 min-w-0">
+            {/* Search */}
             <div className="mb-6" ref={searchContainerRef}>
               <form onSubmit={handleSearch} className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -474,33 +342,18 @@ function BrowsePageInner() {
                   placeholder="Search for items, categories, or locations..."
                   className="w-full pl-12 pr-28 py-3 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:outline-none focus:border-trini-gold focus:ring-2 focus:ring-trini-gold/20 transition-colors"
                 />
-                <button
-                  type="submit"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-1.5 bg-gradient-to-r from-trini-red to-tropical-orange text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-sm"
-                >
-                  Search
-                </button>
+                <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-1.5 bg-gradient-to-r from-trini-red to-tropical-orange text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-sm">Search</button>
                 {showSuggestions && (
                   <div className="absolute bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md w-full mt-1 z-50 overflow-hidden">
                     {loadingSuggestions ? (
-                      <div className="px-4 py-3 flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Searching...</span>
-                      </div>
+                      <div className="px-4 py-3 flex items-center gap-2 text-gray-500 dark:text-gray-400"><Loader2 className="w-4 h-4 animate-spin" /><span>Searching...</span></div>
                     ) : suggestions.length > 0 ? (
                       suggestions.map((suggestion) => (
-                        <button
-                          key={suggestion.id}
-                          type="button"
-                          onClick={() => handleSuggestionClick(suggestion)}
-                          className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                        >
+                        <button key={suggestion.id} type="button" onClick={() => handleSuggestionClick(suggestion)} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors">
                           <div className="text-gray-800 dark:text-white font-medium truncate">{suggestion.title}</div>
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-500 dark:text-gray-400">{suggestion.category}</span>
-                            {suggestion.price !== null && (
-                              <span className="text-trini-red font-semibold">${suggestion.price.toLocaleString()}</span>
-                            )}
+                            {suggestion.price !== null && <span className="text-trini-red font-semibold">${suggestion.price.toLocaleString()}</span>}
                           </div>
                         </button>
                       ))
@@ -512,6 +365,7 @@ function BrowsePageInner() {
               </form>
             </div>
 
+            {/* Filters */}
             <div className="bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-xl p-3 mb-4 shadow-sm">
               <div className="flex flex-wrap items-center gap-3">
                 <input type="number" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="Min Price" className="w-[110px] px-3 py-2 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-trini-gold/50 focus:border-trini-gold" />
@@ -548,8 +402,8 @@ function BrowsePageInner() {
                   <option value="oldest" className="bg-white dark:bg-gray-800">Oldest First</option>
                 </select>
                 <div className="flex bg-gray-100 dark:bg-white/10 rounded-lg p-1">
-                  <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-trini-gold text-trini-black' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`} title="Grid View"><Grid className="w-4 h-4" /></button>
-                  <button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-trini-gold text-trini-black' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`} title="List View"><List className="w-4 h-4" /></button>
+                  <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-trini-gold text-trini-black' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}><Grid className="w-4 h-4" /></button>
+                  <button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-trini-gold text-trini-black' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}><List className="w-4 h-4" /></button>
                 </div>
                 {activeFiltersCount > 0 && (
                   <button onClick={clearFilters} className="ml-auto px-4 py-2 bg-trini-red/10 dark:bg-trini-red/20 text-trini-red rounded-lg text-sm font-medium hover:bg-trini-red/20 dark:hover:bg-trini-red/30 transition-colors flex items-center gap-2">
@@ -561,13 +415,10 @@ function BrowsePageInner() {
 
             <div className="flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400 mb-4">
               <span>{loading ? 'Searching...' : `${results?.pagination.total || 0} listings found`}</span>
-              {results && results.listings.filter(l => l.images && l.images.length > 0).length > 0 && (
-                <span>{results.listings.filter(l => l.images && l.images.length > 0).length} with photos</span>
-              )}
             </div>
 
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              {category ? `${getCategoryEmoji(category)} ${category}` : '📋 Latest Listings'}
+              {category ? `${getCategoryEmoji(categoryDisplayName)} ${categoryDisplayName}` : '📋 Latest Listings'}
             </h2>
 
             {loading ? (
@@ -596,7 +447,7 @@ function BrowsePageInner() {
                         ) : (
                           <Package className="w-10 h-10 text-gray-400" />
                         )}
-                        {listing.featuredStatus === "ACTIVE" && (
+                        {listing.featuredStatus === 'ACTIVE' && (
                           <div className="absolute top-2 left-2 px-2 py-1 bg-gradient-to-r from-trini-gold to-tropical-orange text-white text-xs font-semibold rounded-full flex items-center gap-1">
                             <Star className="w-3 h-3" fill="currentColor" />Featured
                           </div>
@@ -631,15 +482,21 @@ function BrowsePageInner() {
                           <span>•</span>
                           <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{listing.views} views</span>
                         </div>
+                        {/* Show subcategory badge for House & Land */}
+                        {listing.category.startsWith('House & Land -') && (
+                          <span className="mt-2 inline-block text-xs px-2 py-0.5 bg-trini-gold/20 text-trini-gold rounded-full font-medium">
+                            {listing.category.replace('House & Land - ', '')}
+                          </span>
+                        )}
                       </div>
                     </Link>
                   ))}
                 </div>
                 {results && results.pagination.totalPages > 1 && (
                   <div className="flex items-center justify-center gap-2 mt-8">
-                    <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 bg-white/10 rounded-lg text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors">Previous</button>
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 bg-white/10 rounded-lg text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors">Previous</button>
                     <span className="px-4 py-2 text-gray-500 dark:text-gray-400">Page {page} of {results.pagination.totalPages}</span>
-                    <button onClick={() => setPage((p) => Math.min(results.pagination.totalPages, p + 1))} disabled={page === results.pagination.totalPages} className="px-4 py-2 bg-white/10 rounded-lg text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors">Next</button>
+                    <button onClick={() => setPage(p => Math.min(results.pagination.totalPages, p + 1))} disabled={page === results.pagination.totalPages} className="px-4 py-2 bg-white/10 rounded-lg text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors">Next</button>
                   </div>
                 )}
               </>
@@ -649,27 +506,27 @@ function BrowsePageInner() {
             <div className="mt-6"><BannerAd placement="browse_mid" /></div>
           </div>
 
+          {/* Right Sidebar */}
           <div className="w-72 flex-shrink-0 hidden xl:block space-y-6">
             <AdBanner position="right" type="vertical" />
             <BannerAd placement="browse_sidebar" />
             {!sectionsLoading && sectionsData?.featured && sectionsData.featured.length > 0 && (
               <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
                 <div className="flex items-center gap-2 mb-4"><Star className="w-5 h-5 text-trini-gold" /><h3 className="text-lg font-bold text-gray-900 dark:text-white">Featured</h3></div>
-                <div className="space-y-2">{sectionsData.featured.slice(0, 4).map((listing) => <CompactListingCard key={listing.id} listing={listing} />)}</div>
+                <div className="space-y-2">{sectionsData.featured.slice(0, 4).map(l => <CompactListingCard key={l.id} listing={l} />)}</div>
                 <Link href="/" className="mt-4 block text-center text-sm text-trini-red hover:text-trini-red/80 font-semibold">View More →</Link>
               </div>
             )}
             {!sectionsLoading && sectionsData?.trending && sectionsData.trending.length > 0 && (
               <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
                 <div className="flex items-center gap-2 mb-4"><Zap className="w-5 h-5 text-trini-red" /><h3 className="text-lg font-bold text-gray-900 dark:text-white">Trending</h3></div>
-                <div className="space-y-2">{sectionsData.trending.slice(0, 4).map((listing) => <CompactListingCard key={listing.id} listing={listing} />)}</div>
+                <div className="space-y-2">{sectionsData.trending.slice(0, 4).map(l => <CompactListingCard key={l.id} listing={l} />)}</div>
               </div>
             )}
             {!sectionsLoading && sectionsData?.swapMatches && sectionsData.swapMatches.length > 0 && (
               <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
                 <div className="flex items-center gap-2 mb-4"><RefreshCw className="w-5 h-5 text-tropical-purple" /><h3 className="text-lg font-bold text-gray-900 dark:text-white">Swap Matches</h3></div>
-                <div className="space-y-2">{sectionsData.swapMatches.slice(0, 4).map((listing) => <CompactListingCard key={listing.id} listing={listing} showSwapButton={true} />)}</div>
-                <Link href="/?section=swaps" className="mt-4 block text-center text-sm text-tropical-purple hover:text-tropical-purple/80 font-semibold">View All Swaps →</Link>
+                <div className="space-y-2">{sectionsData.swapMatches.slice(0, 4).map(l => <CompactListingCard key={l.id} listing={l} showSwapButton={true} />)}</div>
               </div>
             )}
             {!sectionsLoading && sectionsData?.recentActivity && sectionsData.recentActivity.length > 0 && (
