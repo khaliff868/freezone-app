@@ -1,13 +1,14 @@
 // Home Page - Marketplace with Multiple Content Sections
 
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
-import { redirect } from 'next/navigation';
+
+
+
 import { prisma } from '@/lib/db';
 import Link from 'next/link';
-import { Sparkles, TrendingUp, RefreshCcw, ShoppingBag, ArrowRight, MapPin, Tag, Star, Eye, Package, Clock, Users, Activity, Zap, Heart, Grid3X3 } from 'lucide-react';
+import { Sparkles, TrendingUp, RefreshCcw, ShoppingBag, ArrowRight, Tag, Clock, Users, Activity, Zap, Heart, Grid3X3, Eye } from 'lucide-react';
 import BannerAd from '@/components/shared/banner-ad';
 import AdBanner from '@/components/shared/ad-banner';
+import { ListingCard } from '@/components/shared/listing-card';
 
 const CATEGORIES_DATA: Record<string, { emoji: string; color: string }> = {
   'Swaps': { emoji: '🔄', color: 'from-tropical-purple to-caribbean-ocean' },
@@ -50,12 +51,6 @@ type ListingWithUser = {
 };
 
 export default async function HomePage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    redirect('/auth/login');
-  }
-
   // Fetch enough listings for all sections
   const allListings = await prisma.listing.findMany({
     where: { status: 'ACTIVE' },
@@ -146,50 +141,6 @@ export default async function HomePage() {
     const days = Math.floor(hours / 24);
     return `${days}d ago`;
   };
-
-  const ListingCard = ({ listing, showSwapButton = false }: { listing: ListingWithUser; showSwapButton?: boolean }) => (
-    <Link
-      href={`/dashboard/listings/${listing.id}`}
-      className="group bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg overflow-hidden card-hover border border-gray-100 dark:border-white/10"
-    >
-      <div className="h-44 bg-white border-b border-gray-100 dark:border-white/10 relative flex items-center justify-center">
-        {listing.images && listing.images[0] ? (
-          <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-        ) : (
-          <Package className="w-10 h-10 text-gray-400" />
-        )}
-        {listing.featuredStatus === "ACTIVE" && (
-          <div className="absolute top-3 left-3 px-3 py-1 bg-trini-gold text-trini-black text-xs font-bold rounded-full flex items-center gap-1 pulse-badge">
-            <Star className="w-3 h-3" />Featured
-          </div>
-        )}
-        <div className={`absolute top-3 right-3 px-3 py-1 ${getTypeColor(listing.listingType)} text-xs font-bold rounded-full`}>
-          {listing.listingType}
-        </div>
-      </div>
-      <div className="p-4">
-        <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1 group-hover:text-trini-red transition">{listing.title}</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{listing.description}</p>
-        <div className="mt-3">
-          {listing.price ? (
-            <div><span className="text-xl font-bold text-trini-red">${listing.price}</span><span className="text-sm text-gray-500 dark:text-gray-400 ml-1">TTD</span></div>
-          ) : (
-            <span className="text-lg font-semibold text-tropical-purple">Swap Only</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 mt-2 text-sm text-gray-500 dark:text-gray-400">
-          <MapPin className="w-3 h-3" /><span>{listing.location}</span><span>•</span><Eye className="w-3 h-3" /><span>{listing.views || 0} views</span>
-        </div>
-        {showSwapButton && (listing.listingType === 'SWAP' || listing.listingType === 'BOTH') && (
-          <div className="mt-3">
-            <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-tropical-purple/10 text-tropical-purple text-xs font-semibold rounded-full">
-              <RefreshCcw className="w-3 h-3" />Offer Swap
-            </span>
-          </div>
-        )}
-      </div>
-    </Link>
-  );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
