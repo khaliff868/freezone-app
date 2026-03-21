@@ -2,12 +2,10 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 
 type Theme = 'dark' | 'light';
-
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
-
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -17,14 +15,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMounted(true);
     const stored = localStorage.getItem('theme') as Theme | null;
-    if (stored === 'light' || stored === 'dark') {
-      setThemeState(stored);
-      document.documentElement.classList.toggle('dark', stored === 'dark');
-      document.documentElement.style.colorScheme = stored;
+    if (stored === 'dark') {
+      setThemeState('dark');
+      document.documentElement.classList.add('dark');
+      document.documentElement.style.colorScheme = 'dark';
     } else {
-      // Default to light mode — ignore system preference
+      // Default to light — explicitly remove dark class and force white bg
+      setThemeState('light');
       document.documentElement.classList.remove('dark');
       document.documentElement.style.colorScheme = 'light';
+      document.documentElement.style.backgroundColor = '#ffffff';
+      document.body.style.backgroundColor = '#ffffff';
     }
   }, []);
 
@@ -34,18 +35,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.style.colorScheme = newTheme;
     if (newTheme === 'dark') {
       document.documentElement.classList.add('dark');
+      document.documentElement.style.backgroundColor = '';
+      document.body.style.backgroundColor = '';
     } else {
       document.documentElement.classList.remove('dark');
+      document.documentElement.style.backgroundColor = '#ffffff';
+      document.body.style.backgroundColor = '#ffffff';
     }
   };
 
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
+  // Always render children — but suppress any dark appearance before mount
+  // by keeping html without .dark class (set in layout) and forcing white bg inline
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
-      {children}
+      <div
+        style={!mounted ? { backgroundColor: '#ffffff', minHeight: '100vh' } : undefined}
+      >
+        {children}
+      </div>
     </ThemeContext.Provider>
   );
 }
