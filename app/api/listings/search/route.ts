@@ -27,9 +27,12 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // Use startsWith for House & Land and Vehicles to match all subcategories
     if (category) {
       if (category === 'House & Land') {
         where.category = { startsWith: 'House & Land' };
+      } else if (category === 'Vehicles') {
+        where.category = { startsWith: 'Vehicles' };
       } else {
         where.category = category;
       }
@@ -81,24 +84,26 @@ export async function GET(request: NextRequest) {
       _count: { category: true },
     });
 
-    // Keep all raw entries AND add a rolled-up House & Land parent entry
+    // Keep all raw entries AND add rolled-up parent entries for House & Land and Vehicles
     const categoryEntries: { name: string; count: number }[] = [];
     let houseLandTotal = 0;
+    let vehiclesTotal = 0;
 
     for (const c of rawCategories) {
       categoryEntries.push({ name: c.category, count: c._count.category });
-      if (c.category.startsWith('House & Land')) {
-        houseLandTotal += c._count.category;
-      }
+      if (c.category.startsWith('House & Land')) houseLandTotal += c._count.category;
+      if (c.category === 'Vehicles' || c.category.startsWith('Vehicles - ')) vehiclesTotal += c._count.category;
     }
 
     // Add or update rolled-up House & Land parent
-    const existing = categoryEntries.find(c => c.name === 'House & Land');
-    if (existing) {
-      existing.count = houseLandTotal;
-    } else if (houseLandTotal > 0) {
-      categoryEntries.push({ name: 'House & Land', count: houseLandTotal });
-    }
+    const existingHL = categoryEntries.find(c => c.name === 'House & Land');
+    if (existingHL) { existingHL.count = houseLandTotal; }
+    else if (houseLandTotal > 0) { categoryEntries.push({ name: 'House & Land', count: houseLandTotal }); }
+
+    // Add or update rolled-up Vehicles parent
+    const existingV = categoryEntries.find(c => c.name === 'Vehicles');
+    if (existingV) { existingV.count = vehiclesTotal; }
+    else if (vehiclesTotal > 0) { categoryEntries.push({ name: 'Vehicles', count: vehiclesTotal }); }
 
     const locations = await prisma.listing.groupBy({
       by: ['location'],
@@ -108,11 +113,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       listings,
-      pagination: { total: totalCount, page, limit, totalPages: Math.ceil(totalCount / limit) },
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
       filters: {
         categories: categoryEntries,
         locations: locations.map((l: { location: string; _count: { location: number } }) => ({
-          name: l.location, count: l._count.location,
+          name: l.location,
+          count: l._count.location,
         })),
       },
     });
