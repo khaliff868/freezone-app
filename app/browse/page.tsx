@@ -42,8 +42,8 @@ const VEHICLE_MAKES = [
 ];
 
 const CATEGORIES = [
-  { name: 'Swaps', emoji: '🔄', color: 'from-tropical-purple to-caribbean-ocean' },
   { name: 'Free Items', emoji: '🎁', color: 'from-caribbean-green to-tropical-lime' },
+  { name: 'Swaps', emoji: '🔄', color: 'from-tropical-purple to-caribbean-ocean' },
   { name: 'Beauty & Personal Care', emoji: '💄', color: 'from-tropical-pink to-tropical-coral' },
   { name: 'Electronics', emoji: '📱', color: 'from-caribbean-teal to-ocean-blue' },
   { name: 'Vehicles', emoji: '🚗', color: 'from-trini-red to-tropical-orange' },
