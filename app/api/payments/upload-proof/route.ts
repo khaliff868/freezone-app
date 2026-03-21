@@ -17,7 +17,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment ID and proof URL are required' }, { status: 400 });
     }
 
-    // Verify payment belongs to user and is pending
     const payment = await prisma.feePayment.findFirst({
       where: {
         id: paymentId,
@@ -25,19 +24,39 @@ export async function POST(request: NextRequest) {
         method: { in: ['BANK_DEPOSIT', 'ONLINE_BANK'] },
         status: 'PENDING',
       },
+      include: {
+        listing: { select: { id: true, title: true } },
+        user: { select: { id: true, name: true, email: true } },
+      },
     });
 
     if (!payment) {
       return NextResponse.json({ error: 'Payment not found or not eligible for proof upload' }, { status: 404 });
     }
 
-    // Update payment with proof
     await prisma.feePayment.update({
       where: { id: paymentId },
-      data: {
-        proofUploadUrl: proofUrl,
-      },
+      data: { proofUploadUrl: proofUrl },
     });
+
+    // Notify all admins
+    const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
+
+    if (admins.length > 0) {
+      const listingTitle = payment.listing?.title || 'Unknown listing';
+      const userName = payment.user?.name || session.user.name || 'A user';
+      const userEmail = payment.user?.email || session.user.email || '';
+
+      await prisma.notification.createMany({
+        data: admins.map(admin => ({
+          userId: admin.id,
+          type: 'PAYMENT_RECEIVED',
+          title: '💳 Payment Proof Submitted',
+          message: `${userName} (${userEmail}) has submitted proof of payment for "${listingTitle}". Amount: ${payment.amount} ${payment.currency}. Please review and approve.`,
+          linkUrl: `/admin/payments`,
+        })),
+      });
+    }
 
     return NextResponse.json({
       success: true,
