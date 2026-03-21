@@ -7,9 +7,9 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
-  Search, Filter, Grid, List, MapPin, Tag, Package, ChevronDown, X,
-  Eye, Star, RefreshCw, ShoppingBag, Heart, Loader2, Clock, Zap,
-  Activity, Users, ArrowRight,
+  Search, Grid, List, MapPin, Tag, Package, ChevronDown, X,
+  Eye, Star, RefreshCw, ShoppingBag, Heart, Loader2, Zap,
+  Activity, Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import BannerAd from '@/components/shared/banner-ad';
@@ -34,12 +34,29 @@ interface HomepageSectionsData {
   recentActivity: { type: string; message: string; timestamp: string }[];
 }
 
-const VEHICLE_MAKES = [
-  'Audi', 'BMW', 'Chevrolet', 'Dodge', 'Ford', 'Honda', 'Hyundai', 'Isuzu',
-  'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Mazda', 'Mercedes-Benz', 'Mini',
-  'Mitsubishi', 'Nissan', 'Peugeot', 'Porsche', 'Subaru', 'Suzuki', 'Toyota',
-  'Volkswagen', 'Volvo', 'Other',
-];
+// 3-level vehicle hierarchy: type -> makes
+const VEHICLE_HIERARCHY: Record<string, string[]> = {
+  Cars: [
+    'Audi', 'BMW', 'Chevrolet', 'Dodge', 'Ford', 'Honda', 'Hyundai', 'Isuzu',
+    'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Mazda', 'Mercedes-Benz', 'Mini',
+    'Mitsubishi', 'Nissan', 'Other', 'Peugeot', 'Porsche', 'Subaru', 'Suzuki',
+    'Toyota', 'Volkswagen', 'Volvo',
+  ],
+  SUVs: [
+    'Audi', 'BMW', 'Chevrolet', 'Ford', 'Honda', 'Hyundai', 'Isuzu', 'Jeep',
+    'Kia', 'Land Rover', 'Lexus', 'Mazda', 'Mercedes-Benz', 'Mitsubishi',
+    'Nissan', 'Other', 'Subaru', 'Suzuki', 'Toyota', 'Volkswagen',
+  ],
+  Vans: [
+    'Ford', 'Hyundai', 'Isuzu', 'Kia', 'Mercedes-Benz', 'Mitsubishi',
+    'Nissan', 'Other', 'Peugeot', 'Suzuki', 'Toyota', 'Volkswagen',
+  ],
+  Trucks: [
+    'Chevrolet', 'Dodge', 'Ford', 'Isuzu', 'Jeep', 'Mazda', 'Mercedes-Benz',
+    'Mitsubishi', 'Nissan', 'Other', 'Toyota', 'Volkswagen',
+  ],
+};
+const VEHICLE_TYPES = Object.keys(VEHICLE_HIERARCHY);
 
 const CATEGORIES = [
   { name: 'Free Items', emoji: '🎁', color: 'from-caribbean-green to-tropical-lime' },
@@ -66,14 +83,6 @@ const CATEGORIES = [
   { name: 'Other', emoji: '📦', color: 'from-gray-500 to-gray-600' },
 ];
 
-const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest First' },
-  { value: 'oldest', label: 'Oldest First' },
-  { value: 'price_low', label: 'Price: Low to High' },
-  { value: 'price_high', label: 'Price: High to Low' },
-  { value: 'popular', label: 'Most Popular' },
-];
-
 function BrowsePageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -95,6 +104,16 @@ function BrowsePageInner() {
   const [vehiclesExpanded, setVehiclesExpanded] = useState(
     () => (searchParams.get('category') || '').startsWith('Vehicles - ')
   );
+  // Track which vehicle type is expanded in sidebar
+  const [expandedVehicleType, setExpandedVehicleType] = useState<string | null>(() => {
+    const cat = searchParams.get('category') || '';
+    if (cat.startsWith('Vehicles - ')) {
+      const parts = cat.split(' - ');
+      return parts.length === 3 ? parts[1] : null;
+    }
+    return null;
+  });
+
   const [listingType, setListingType] = useState(searchParams.get('type') || '');
   const [condition, setCondition] = useState(searchParams.get('condition') || '');
   const [location, setLocation] = useState(searchParams.get('location') || '');
@@ -116,7 +135,12 @@ function BrowsePageInner() {
         const res = await fetch('/api/homepage/sections');
         if (res.ok) {
           const data = await res.json();
-          if (data.success) setSectionsData({ featured: data.data.featured || [], trending: data.data.trending || [], swapMatches: data.data.swapMatches || [], recentActivity: data.data.recentActivity || [] });
+          if (data.success) setSectionsData({
+            featured: data.data.featured || [],
+            trending: data.data.trending || [],
+            swapMatches: data.data.swapMatches || [],
+            recentActivity: data.data.recentActivity || [],
+          });
         }
       } catch (error) { console.error('Error fetching sections:', error); }
       finally { setSectionsLoading(false); }
@@ -226,18 +250,44 @@ function BrowsePageInner() {
   };
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setShowSuggestions(false); setPage(1); fetchResults(); };
-  const clearFilters = () => { setQuery(''); setCategory(''); setListingType(''); setCondition(''); setLocation(''); setMinPrice(''); setMaxPrice(''); setSortBy('newest'); setPage(1); setHouseLandExpanded(false); setVehiclesExpanded(false); };
 
-  const getCategoryStyle = (cat: string) => CATEGORIES.find(c => c.name === cat)?.color || 'from-gray-500 to-gray-600';
+  const clearFilters = () => {
+    setQuery(''); setCategory(''); setListingType(''); setCondition('');
+    setLocation(''); setMinPrice(''); setMaxPrice(''); setSortBy('newest');
+    setPage(1); setHouseLandExpanded(false); setVehiclesExpanded(false);
+    setExpandedVehicleType(null);
+  };
+
   const getCategoryEmoji = (cat: string) => {
     if (cat.startsWith('House & Land')) return '🏠';
-    if (cat.startsWith('Vehicles - ')) return '🚗';
+    if (cat.startsWith('Vehicles')) return '🚗';
     return CATEGORIES.find(c => c.name === cat)?.emoji || '📦';
   };
 
+  // Count helpers
   const getCategoryCount = (catName: string) => {
     if (!results?.filters?.categories) return 0;
+    if (catName === 'Vehicles') {
+      return results.filters.categories
+        .filter(c => c.name === 'Vehicles' || c.name.startsWith('Vehicles - '))
+        .reduce((sum, c) => sum + c.count, 0);
+    }
     return results.filters.categories.find(c => c.name === catName)?.count || 0;
+  };
+
+  // Count for a vehicle type (e.g. "Cars") = sum of all "Vehicles - Cars - *"
+  const getVehicleTypeCount = (type: string) => {
+    if (!results?.filters?.categories) return 0;
+    const prefix = `Vehicles - ${type} - `;
+    const exact = `Vehicles - ${type}`;
+    return results.filters.categories
+      .filter(c => c.name === exact || c.name.startsWith(prefix))
+      .reduce((sum, c) => sum + c.count, 0);
+  };
+
+  const getVehicleMakeCount = (type: string, make: string) => {
+    if (!results?.filters?.categories) return 0;
+    return results.filters.categories.find(c => c.name === `Vehicles - ${type} - ${make}`)?.count || 0;
   };
 
   const activeFiltersCount = [category, listingType, condition, location, minPrice, maxPrice].filter(Boolean).length;
@@ -278,7 +328,19 @@ function BrowsePageInner() {
     </Link>
   );
 
-  const categoryDisplayName = category.startsWith('House & Land') ? 'House & Land' : category;
+  // Derived: is current category a vehicle subcategory?
+  const isVehicleCategory = category === 'Vehicles' || category.startsWith('Vehicles - ');
+
+  const getHeadingLabel = () => {
+    if (!category) return '📋 Latest Listings';
+    if (category.startsWith('House & Land - ')) return `🏠 ${category.replace('House & Land - ', '')}`;
+    if (category.startsWith('Vehicles - ')) {
+      const parts = category.split(' - ');
+      if (parts.length === 3) return `🚗 ${parts[1]} › ${parts[2]}`;
+      if (parts.length === 2) return `🚗 ${parts[1]}`;
+    }
+    return `${getCategoryEmoji(category)} ${category}`;
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -296,15 +358,16 @@ function BrowsePageInner() {
         <div className="lg:hidden mb-6 space-y-4"><AdBanner position="left" type="horizontal" /></div>
 
         <div className="flex gap-8">
-          {/* Left Sidebar — Categories */}
+          {/* Left Sidebar */}
           <div className="w-64 flex-shrink-0 hidden lg:block">
             <div className="bg-white dark:bg-white/10 rounded-2xl p-5 sticky top-24 border border-gray-200 dark:border-transparent shadow-lg dark:shadow-none">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <Tag className="w-5 h-5 text-trini-gold" />Categories
               </h2>
               <div className="space-y-1">
+                {/* All Categories */}
                 <button
-                  onClick={() => { setCategory(''); setHouseLandExpanded(false); setPage(1); }}
+                  onClick={() => { setCategory(''); setHouseLandExpanded(false); setVehiclesExpanded(false); setExpandedVehicleType(null); setPage(1); }}
                   className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 font-medium ${category === '' ? 'bg-trini-gold text-black' : 'text-gray-700 dark:text-gray-100 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'}`}
                 >
                   <span>📋</span><span>All Categories</span>
@@ -312,42 +375,37 @@ function BrowsePageInner() {
                     {results?.pagination.total || 0}
                   </span>
                 </button>
+
                 {CATEGORIES.map((cat) => {
                   const count = getCategoryCount(cat.name);
-                  const isActive = category === cat.name
-                    || (cat.name === 'House & Land' && category.startsWith('House & Land'))
-                    || (cat.name === 'Vehicles' && category.startsWith('Vehicles - '));
                   const isHouseLand = cat.name === 'House & Land';
                   const isVehicles = cat.name === 'Vehicles';
+                  const isActive = category === cat.name
+                    || (isHouseLand && category.startsWith('House & Land'))
+                    || (isVehicles && category.startsWith('Vehicles'));
                   const isExpanded = isHouseLand && houseLandExpanded;
                   const isVehiclesExpanded = isVehicles && vehiclesExpanded;
 
                   return (
                     <div key={cat.name}>
+                      {/* Category row */}
                       <button
                         onClick={() => {
                           if (isHouseLand) {
-                            if (houseLandExpanded) {
-                              setHouseLandExpanded(false);
-                              setCategory('House & Land');
-                            } else {
-                              setHouseLandExpanded(true);
-                              setCategory('House & Land');
-                            }
+                            setHouseLandExpanded(e => !e);
+                            setCategory('House & Land');
                             setVehiclesExpanded(false);
+                            setExpandedVehicleType(null);
                           } else if (isVehicles) {
-                            if (vehiclesExpanded) {
-                              setVehiclesExpanded(false);
-                              setCategory('Vehicles');
-                            } else {
-                              setVehiclesExpanded(true);
-                              setCategory('Vehicles');
-                            }
+                            setVehiclesExpanded(e => !e);
+                            setCategory('Vehicles');
                             setHouseLandExpanded(false);
+                            if (vehiclesExpanded) setExpandedVehicleType(null);
                           } else {
                             setCategory(cat.name);
                             setHouseLandExpanded(false);
                             setVehiclesExpanded(false);
+                            setExpandedVehicleType(null);
                           }
                           setPage(1);
                         }}
@@ -363,6 +421,7 @@ function BrowsePageInner() {
                         </span>
                       </button>
 
+                      {/* House & Land subcategories */}
                       {isHouseLand && isExpanded && (
                         <div className="ml-4 mt-1 space-y-1 border-l-2 border-trini-gold/30 pl-3">
                           {[
@@ -380,33 +439,66 @@ function BrowsePageInner() {
                               >
                                 <span>{sub.emoji}</span>
                                 <span className="truncate">{sub.label}</span>
-                                <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${subActive ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
-                                  {subCount}
-                                </span>
+                                <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${subActive ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>{subCount}</span>
                               </button>
                             );
                           })}
                         </div>
                       )}
 
+                      {/* Vehicles 3-level tree */}
                       {isVehicles && isVehiclesExpanded && (
-                        <div className="ml-4 mt-1 space-y-1 border-l-2 border-trini-red/30 pl-3 max-h-64 overflow-y-auto">
-                          {VEHICLE_MAKES.map((make) => {
-                            const value = `Vehicles - ${make}`;
-                            const subCount = results?.filters?.categories?.find(c => c.name === value)?.count || 0;
-                            const subActive = category === value;
+                        <div className="ml-4 mt-1 space-y-1 border-l-2 border-trini-red/30 pl-3 max-h-96 overflow-y-auto">
+                          {VEHICLE_TYPES.map((vType) => {
+                            const typeCount = getVehicleTypeCount(vType);
+                            const typeValue = `Vehicles - ${vType}`;
+                            const typeActive = category === typeValue;
+                            const typeExpanded = expandedVehicleType === vType;
+                            const makes = VEHICLE_HIERARCHY[vType];
+
                             return (
-                              <button
-                                key={value}
-                                onClick={(e) => { e.stopPropagation(); setCategory(value); setVehiclesExpanded(true); setPage(1); }}
-                                className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium ${subActive ? 'bg-trini-gold text-black' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'}`}
-                              >
-                                <span>🚗</span>
-                                <span className="truncate">{make}</span>
-                                <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${subActive ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
-                                  {subCount}
-                                </span>
-                              </button>
+                              <div key={vType}>
+                                {/* Vehicle type row */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (typeExpanded) {
+                                      setExpandedVehicleType(null);
+                                    } else {
+                                      setExpandedVehicleType(vType);
+                                    }
+                                    setCategory(typeValue);
+                                    setPage(1);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium ${typeActive || category.startsWith(`${typeValue} - `) ? 'bg-trini-gold text-black' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'}`}
+                                >
+                                  <span>🚗</span>
+                                  <span className="truncate">{vType}</span>
+                                  <ChevronDown className={`w-3 h-3 ml-1 transition-transform flex-shrink-0 ${typeExpanded ? 'rotate-180' : ''}`} />
+                                  <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${typeActive || category.startsWith(`${typeValue} - `) ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>{typeCount}</span>
+                                </button>
+
+                                {/* Makes under this type */}
+                                {typeExpanded && (
+                                  <div className="ml-4 mt-1 space-y-1 border-l-2 border-trini-red/20 pl-3">
+                                    {makes.map((make) => {
+                                      const makeValue = `Vehicles - ${vType} - ${make}`;
+                                      const makeCount = getVehicleMakeCount(vType, make);
+                                      const makeActive = category === makeValue;
+                                      return (
+                                        <button
+                                          key={makeValue}
+                                          onClick={(e) => { e.stopPropagation(); setCategory(makeValue); setPage(1); }}
+                                          className={`w-full text-left px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium ${makeActive ? 'bg-trini-gold text-black' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'}`}
+                                        >
+                                          <span className="truncate">{make}</span>
+                                          <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-full ${makeActive ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>{makeCount}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
                             );
                           })}
                         </div>
@@ -508,15 +600,7 @@ function BrowsePageInner() {
               <span>{loading ? 'Searching...' : `${results?.pagination.total || 0} listings found`}</span>
             </div>
 
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              {category
-                ? category.startsWith('House & Land - ')
-                  ? `🏠 ${category.replace('House & Land - ', '')}`
-                  : category.startsWith('Vehicles - ')
-                  ? `🚗 ${category.replace('Vehicles - ', '')}`
-                  : `${getCategoryEmoji(category)} ${category}`
-                : '📋 Latest Listings'}
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{getHeadingLabel()}</h2>
 
             {loading ? (
               <div className="flex items-center justify-center py-20">
@@ -584,6 +668,11 @@ function BrowsePageInner() {
                             {listing.category.replace('House & Land - ', '')}
                           </span>
                         )}
+                        {listing.category.startsWith('Vehicles - ') && (
+                          <span className="mt-2 inline-block text-xs px-2 py-0.5 bg-trini-red/10 text-trini-red rounded-full font-medium">
+                            {listing.category.replace('Vehicles - ', '').replace(' - ', ' › ')}
+                          </span>
+                        )}
                       </div>
                     </Link>
                   ))}
@@ -644,7 +733,6 @@ function BrowsePageInner() {
             <BannerAd placement="browse_sidebar_bottom" />
           </div>
         </div>
-
         <div className="xl:hidden mt-6"><AdBanner position="right" type="horizontal" /></div>
       </div>
     </div>
