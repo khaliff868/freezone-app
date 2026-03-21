@@ -40,6 +40,8 @@ const VEHICLE_MAKES = [
   'Mitsubishi', 'Nissan', 'Peugeot', 'Porsche', 'Subaru', 'Suzuki', 'Toyota',
   'Volkswagen', 'Volvo', 'Other',
 ];
+
+const CATEGORIES = [
   { name: 'Swaps', emoji: '🔄', color: 'from-tropical-purple to-caribbean-ocean' },
   { name: 'Free Items', emoji: '🎁', color: 'from-caribbean-green to-tropical-lime' },
   { name: 'Beauty & Personal Care', emoji: '💄', color: 'from-tropical-pink to-tropical-coral' },
