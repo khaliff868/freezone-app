@@ -332,8 +332,8 @@ function BrowsePageInner() {
                       {isHouseLand && isExpanded && (
                         <div className="ml-4 mt-1 space-y-1 border-l-2 border-trini-gold/30 pl-3">
                           {[
-                            { label: 'House For Sale', emoji: '🏠', value: 'House & Land - House For Sale' },
-                            { label: 'House For Rent', emoji: '🔑', value: 'House & Land - House For Rent' },
+                            { label: 'Sale', emoji: '🏠', value: 'House & Land - House For Sale' },
+                            { label: 'Rent', emoji: '🔑', value: 'House & Land - House For Rent' },
                             { label: 'Land', emoji: '🏡', value: 'House & Land - Land' },
                           ].map((sub) => {
                             const subCount = results?.filters?.categories?.find(c => c.name === sub.value)?.count || 0;
