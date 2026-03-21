@@ -18,9 +18,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '12');
 
-    const where: any = {
-      status: 'ACTIVE',
-    };
+    const where: any = { status: 'ACTIVE' };
 
     if (query) {
       where.OR = [
@@ -29,7 +27,6 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Use startsWith for House & Land to match all subcategories
     if (category) {
       if (category === 'House & Land') {
         where.category = { startsWith: 'House & Land' };
@@ -71,28 +68,37 @@ export async function GET(request: NextRequest) {
     const listings = await prisma.listing.findMany({
       where,
       include: {
-        user: {
-          select: { id: true, name: true, avatar: true, location: true },
-        },
+        user: { select: { id: true, name: true, avatar: true, location: true } },
       },
       orderBy: [{ featured: 'desc' }, { boosted: 'desc' }, orderBy],
       skip: (page - 1) * limit,
       take: limit,
     });
 
-    // Roll up House & Land subcategories into one count
     const rawCategories = await prisma.listing.groupBy({
       by: ['category'],
       where: { status: 'ACTIVE' },
       _count: { category: true },
     });
 
-    const categoryMap: Record<string, number> = {};
+    // Keep all raw entries AND add a rolled-up House & Land parent entry
+    const categoryEntries: { name: string; count: number }[] = [];
+    let houseLandTotal = 0;
+
     for (const c of rawCategories) {
-      const key = c.category.startsWith('House & Land') ? 'House & Land' : c.category;
-      categoryMap[key] = (categoryMap[key] || 0) + c._count.category;
+      categoryEntries.push({ name: c.category, count: c._count.category });
+      if (c.category.startsWith('House & Land')) {
+        houseLandTotal += c._count.category;
+      }
     }
-    const categories = Object.entries(categoryMap).map(([name, count]) => ({ name, count }));
+
+    // Add or update rolled-up House & Land parent
+    const existing = categoryEntries.find(c => c.name === 'House & Land');
+    if (existing) {
+      existing.count = houseLandTotal;
+    } else if (houseLandTotal > 0) {
+      categoryEntries.push({ name: 'House & Land', count: houseLandTotal });
+    }
 
     const locations = await prisma.listing.groupBy({
       by: ['location'],
@@ -102,17 +108,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       listings,
-      pagination: {
-        total: totalCount,
-        page,
-        limit,
-        totalPages: Math.ceil(totalCount / limit),
-      },
+      pagination: { total: totalCount, page, limit, totalPages: Math.ceil(totalCount / limit) },
       filters: {
-        categories,
+        categories: categoryEntries,
         locations: locations.map((l: { location: string; _count: { location: number } }) => ({
-          name: l.location,
-          count: l._count.location,
+          name: l.location, count: l._count.location,
         })),
       },
     });
