@@ -34,7 +34,12 @@ interface HomepageSectionsData {
   recentActivity: { type: string; message: string; timestamp: string }[];
 }
 
-const CATEGORIES = [
+const VEHICLE_MAKES = [
+  'Audi', 'BMW', 'Chevrolet', 'Dodge', 'Ford', 'Honda', 'Hyundai', 'Isuzu',
+  'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Mazda', 'Mercedes-Benz', 'Mini',
+  'Mitsubishi', 'Nissan', 'Peugeot', 'Porsche', 'Subaru', 'Suzuki', 'Toyota',
+  'Volkswagen', 'Volvo', 'Other',
+];
   { name: 'Swaps', emoji: '🔄', color: 'from-tropical-purple to-caribbean-ocean' },
   { name: 'Free Items', emoji: '🎁', color: 'from-caribbean-green to-tropical-lime' },
   { name: 'Beauty & Personal Care', emoji: '💄', color: 'from-tropical-pink to-tropical-coral' },
@@ -84,6 +89,9 @@ function BrowsePageInner() {
   const [category, setCategory] = useState(searchParams.get('category') || '');
   const [houseLandExpanded, setHouseLandExpanded] = useState(
     () => (searchParams.get('category') || '').startsWith('House & Land')
+  );
+  const [vehiclesExpanded, setVehiclesExpanded] = useState(
+    () => (searchParams.get('category') || '').startsWith('Vehicles - ')
   );
   const [listingType, setListingType] = useState(searchParams.get('type') || '');
   const [condition, setCondition] = useState(searchParams.get('condition') || '');
@@ -216,12 +224,12 @@ function BrowsePageInner() {
   };
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setShowSuggestions(false); setPage(1); fetchResults(); };
-  const clearFilters = () => { setQuery(''); setCategory(''); setListingType(''); setCondition(''); setLocation(''); setMinPrice(''); setMaxPrice(''); setSortBy('newest'); setPage(1); setHouseLandExpanded(false); };
+  const clearFilters = () => { setQuery(''); setCategory(''); setListingType(''); setCondition(''); setLocation(''); setMinPrice(''); setMaxPrice(''); setSortBy('newest'); setPage(1); setHouseLandExpanded(false); setVehiclesExpanded(false); };
 
   const getCategoryStyle = (cat: string) => CATEGORIES.find(c => c.name === cat)?.color || 'from-gray-500 to-gray-600';
   const getCategoryEmoji = (cat: string) => {
-    // Handle subcategories
     if (cat.startsWith('House & Land')) return '🏠';
+    if (cat.startsWith('Vehicles - ')) return '🚗';
     return CATEGORIES.find(c => c.name === cat)?.emoji || '📦';
   };
 
@@ -306,9 +314,13 @@ function BrowsePageInner() {
                 </button>
                 {CATEGORIES.map((cat) => {
                   const count = getCategoryCount(cat.name);
-                  const isActive = category === cat.name || (cat.name === 'House & Land' && category.startsWith('House & Land'));
+                  const isActive = category === cat.name
+                    || (cat.name === 'House & Land' && category.startsWith('House & Land'))
+                    || (cat.name === 'Vehicles' && category.startsWith('Vehicles - '));
                   const isHouseLand = cat.name === 'House & Land';
+                  const isVehicles = cat.name === 'Vehicles';
                   const isExpanded = isHouseLand && houseLandExpanded;
+                  const isVehiclesExpanded = isVehicles && vehiclesExpanded;
 
                   return (
                     <div key={cat.name}>
@@ -316,16 +328,26 @@ function BrowsePageInner() {
                         onClick={() => {
                           if (isHouseLand) {
                             if (houseLandExpanded) {
-                              // Collapse — also clear subcategory filter back to parent
                               setHouseLandExpanded(false);
                               setCategory('House & Land');
                             } else {
                               setHouseLandExpanded(true);
                               setCategory('House & Land');
                             }
+                            setVehiclesExpanded(false);
+                          } else if (isVehicles) {
+                            if (vehiclesExpanded) {
+                              setVehiclesExpanded(false);
+                              setCategory('Vehicles');
+                            } else {
+                              setVehiclesExpanded(true);
+                              setCategory('Vehicles');
+                            }
+                            setHouseLandExpanded(false);
                           } else {
                             setCategory(cat.name);
                             setHouseLandExpanded(false);
+                            setVehiclesExpanded(false);
                           }
                           setPage(1);
                         }}
@@ -333,8 +355,8 @@ function BrowsePageInner() {
                       >
                         <span>{cat.emoji}</span>
                         <span className="truncate">{cat.name}</span>
-                        {isHouseLand && (
-                          <ChevronDown className={`w-4 h-4 ml-1 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+                        {(isHouseLand || isVehicles) && (
+                          <ChevronDown className={`w-4 h-4 ml-1 transition-transform flex-shrink-0 ${(isExpanded || isVehiclesExpanded) ? 'rotate-180' : ''}`} />
                         )}
                         <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${isActive ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
                           {count}
@@ -359,6 +381,30 @@ function BrowsePageInner() {
                               >
                                 <span>{sub.emoji}</span>
                                 <span className="truncate">{sub.label}</span>
+                                <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${subActive ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
+                                  {subCount}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Vehicles subcategory dropdown */}
+                      {isVehicles && isVehiclesExpanded && (
+                        <div className="ml-4 mt-1 space-y-1 border-l-2 border-trini-red/30 pl-3 max-h-64 overflow-y-auto">
+                          {VEHICLE_MAKES.map((make) => {
+                            const value = `Vehicles - ${make}`;
+                            const subCount = results?.filters?.categories?.find(c => c.name === value)?.count || 0;
+                            const subActive = category === value;
+                            return (
+                              <button
+                                key={value}
+                                onClick={(e) => { e.stopPropagation(); setCategory(value); setVehiclesExpanded(true); setPage(1); }}
+                                className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium ${subActive ? 'bg-trini-gold text-black' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'}`}
+                              >
+                                <span>🚗</span>
+                                <span className="truncate">{make}</span>
                                 <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${subActive ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
                                   {subCount}
                                 </span>
@@ -468,6 +514,8 @@ function BrowsePageInner() {
               {category
                 ? category.startsWith('House & Land - ')
                   ? `🏠 ${category.replace('House & Land - ', '')}`
+                  : category.startsWith('Vehicles - ')
+                  ? `🚗 ${category.replace('Vehicles - ', '')}`
                   : `${getCategoryEmoji(category)} ${category}`
                 : '📋 Latest Listings'}
             </h2>
