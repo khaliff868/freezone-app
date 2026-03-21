@@ -66,7 +66,7 @@ type PaymentInfo = {
 };
 
 export default function ListingDetailPage() {
-  const { data: session } = useSession() || {};
+  const { data: session, status } = useSession() || {};
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -95,6 +95,13 @@ export default function ListingDetailPage() {
   const [markingAsSold, setMarkingAsSold] = useState(false);
 
   const listingId = params?.id as string;
+
+  // Redirect guests to login with callbackUrl
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace(`/auth/login?callbackUrl=/dashboard/listings/${listingId}`);
+    }
+  }, [status, listingId, router]);
 
   const calculateTimeRemaining = useCallback(() => {
     if (!listing || listing.status !== 'PENDING_PAYMENT') {
