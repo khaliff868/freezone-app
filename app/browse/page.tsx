@@ -309,18 +309,52 @@ function BrowsePageInner() {
                 {CATEGORIES.map((cat) => {
                   const count = getCategoryCount(cat.name);
                   const isActive = category === cat.name || (cat.name === 'House & Land' && category.startsWith('House & Land'));
+                  const isHouseLand = cat.name === 'House & Land';
+                  const isExpanded = isHouseLand && category.startsWith('House & Land');
+
                   return (
-                    <button
-                      key={cat.name}
-                      onClick={() => { setCategory(cat.name); setPage(1); }}
-                      className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 font-medium ${isActive ? 'bg-trini-gold text-black' : 'text-gray-700 dark:text-gray-100 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'}`}
-                    >
-                      <span>{cat.emoji}</span>
-                      <span className="truncate">{cat.name}</span>
-                      <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${isActive ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
-                        {count}
-                      </span>
-                    </button>
+                    <div key={cat.name}>
+                      <button
+                        onClick={() => { setCategory(cat.name); setPage(1); }}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 font-medium ${isActive ? 'bg-trini-gold text-black' : 'text-gray-700 dark:text-gray-100 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'}`}
+                      >
+                        <span>{cat.emoji}</span>
+                        <span className="truncate">{cat.name}</span>
+                        {isHouseLand && (
+                          <ChevronDown className={`w-4 h-4 ml-1 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+                        )}
+                        <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${isActive ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
+                          {count}
+                        </span>
+                      </button>
+
+                      {/* House & Land subcategory dropdown */}
+                      {isHouseLand && isExpanded && (
+                        <div className="ml-4 mt-1 space-y-1 border-l-2 border-trini-gold/30 pl-3">
+                          {[
+                            { label: 'House For Sale', emoji: '🏠', value: 'House & Land - House For Sale' },
+                            { label: 'House For Rent', emoji: '🔑', value: 'House & Land - House For Rent' },
+                            { label: 'Land', emoji: '🏡', value: 'House & Land - Land' },
+                          ].map((sub) => {
+                            const subCount = results?.filters?.categories?.find(c => c.name === sub.value)?.count || 0;
+                            const subActive = category === sub.value;
+                            return (
+                              <button
+                                key={sub.value}
+                                onClick={(e) => { e.stopPropagation(); setCategory(sub.value); setPage(1); }}
+                                className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium ${subActive ? 'bg-trini-gold text-black' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/15'}`}
+                              >
+                                <span>{sub.emoji}</span>
+                                <span className="truncate">{sub.label}</span>
+                                <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${subActive ? 'bg-black/20 text-black' : 'bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-gray-200'}`}>
+                                  {subCount}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -418,7 +452,11 @@ function BrowsePageInner() {
             </div>
 
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              {category ? `${getCategoryEmoji(categoryDisplayName)} ${categoryDisplayName}` : '📋 Latest Listings'}
+              {category
+                ? category.startsWith('House & Land - ')
+                  ? `🏠 ${category.replace('House & Land - ', '')}`
+                  : `${getCategoryEmoji(category)} ${category}`
+                : '📋 Latest Listings'}
             </h2>
 
             {loading ? (
