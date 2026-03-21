@@ -306,7 +306,23 @@ export default function ListingDetailPage() {
       });
       if (proofRes.ok) {
         console.log('[UploadProof] Proof saved successfully');
-        toast.success('Payment proof uploaded! We will verify your payment within 24-48 hours.');
+
+        // Send "Proof Submitted" message to seller
+        try {
+          await fetch('/api/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recipientId: listing?.user.id,
+              listingId: listing?.id,
+              initialMessage: `✅ Proof of payment submitted for "${listing?.title}". Reference: ${paymentInfo.reference}. Awaiting admin verification.`,
+            }),
+          });
+        } catch (msgError) {
+          console.error('[UploadProof] Failed to send proof message:', msgError);
+        }
+
+        toast.success('Proof submitted! The seller has been notified. We will verify your payment within 24-48 hours.');
         setShowPaymentModal(false);
         loadListing();
       } else {
