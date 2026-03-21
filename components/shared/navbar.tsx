@@ -19,13 +19,11 @@ export function Navbar() {
   const isLoggedIn = !!session?.user;
   const isAdmin = session?.user?.role === 'ADMIN';
 
-  // Close mobile menu on route change
   useEffect(() => {
     setIsOpen(false);
     setShowNotifications(false);
   }, [pathname]);
 
-  // Close mobile menu on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -40,7 +38,6 @@ export function Navbar() {
     };
   }, [isOpen]);
 
-  // Close notifications on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
@@ -110,7 +107,6 @@ export function Navbar() {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-1 flex-nowrap whitespace-nowrap">
-          {/* Public links — always visible */}
           <Link href="/" onClick={() => setShowNotifications(false)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname === '/' ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
             <Home className="w-4 h-4 flex-shrink-0" /> Home
           </Link>
@@ -121,7 +117,6 @@ export function Navbar() {
             <Mail className="w-4 h-4 flex-shrink-0" /> Contact Us
           </Link>
 
-          {/* Member-only links */}
           {isLoggedIn && (
             <>
               <Link href="/dashboard" onClick={() => setShowNotifications(false)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${pathname === '/dashboard' || (pathname?.startsWith('/dashboard') && !pathname?.includes('/messages') && !pathname?.includes('/swaps') && !pathname?.includes('/wishlist') && !pathname?.includes('/settings')) ? 'bg-trini-gold text-trini-black' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
@@ -167,7 +162,7 @@ export function Navbar() {
                   )}
                 </button>
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-gray-900 rounded-xl shadow-lg border border-white/10 z-50 overflow-hidden">
+                  <div className="fixed md:absolute top-16 md:top-auto left-2 right-2 md:left-auto md:right-0 md:mt-2 md:w-80 bg-gray-900 rounded-xl shadow-lg border border-white/10 z-[200] overflow-hidden">
                     <div className="p-3 border-b border-white/10 flex items-center justify-between">
                       <h3 className="font-semibold text-white">Notifications</h3>
                       {unreadCount > 0 && (
@@ -176,7 +171,7 @@ export function Navbar() {
                         </button>
                       )}
                     </div>
-                    <div className="max-h-80 overflow-y-auto">
+                    <div className="max-h-[70vh] md:max-h-80 overflow-y-auto">
                       {notifications.length === 0 ? (
                         <p className="p-4 text-center text-gray-400 text-sm">No notifications</p>
                       ) : (
@@ -215,7 +210,6 @@ export function Navbar() {
             </>
           ) : (
             <>
-              {/* Guest: Login + Sign Up */}
               <Link href="/auth/login" className="px-3 py-2 text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition">
                 Login
               </Link>
@@ -241,7 +235,6 @@ export function Navbar() {
           isOpen ? 'opacity-100 max-h-screen py-4' : 'opacity-0 max-h-0 py-0 pointer-events-none'
         }`}
       >
-        {/* Public mobile links — always visible */}
         <Link href="/" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 hover:text-trini-gold transition-colors">
           <Home className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Home
         </Link>
@@ -280,7 +273,7 @@ export function Navbar() {
             <Link href="/auth/login" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base border-b border-white/10 hover:text-trini-gold transition-colors">
               <User className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Login
             </Link>
-            <Link href="/auth/register" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base last:border-0 hover:text-trini-gold transition-colors">
+            <Link href="/auth/signup" onClick={() => setIsOpen(false)} className="flex items-center gap-3 py-3 text-white text-base last:border-0 hover:text-trini-gold transition-colors">
               <Sparkles className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} /> Sign Up
             </Link>
           </>
