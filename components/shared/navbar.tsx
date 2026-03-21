@@ -219,7 +219,7 @@ export function Navbar() {
               <Link href="/auth/login" className="px-3 py-2 text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition">
                 Login
               </Link>
-              <Link href="/auth/register" className="px-3 py-2 text-sm font-medium bg-trini-gold text-trini-black rounded-lg hover:opacity-90 transition">
+              <Link href="/auth/signup" className="px-3 py-2 text-sm font-medium bg-trini-gold text-trini-black rounded-lg hover:opacity-90 transition">
                 Sign Up
               </Link>
             </>
