@@ -5,7 +5,7 @@
 
 import { prisma } from '@/lib/db';
 import Link from 'next/link';
-import { Sparkles, TrendingUp, RefreshCcw, ShoppingBag, ArrowRight, Tag, Clock, Users, Activity, Zap, Heart, Grid3X3, Eye } from 'lucide-react';
+import { Sparkles, TrendingUp, RefreshCcw, ShoppingBag, ArrowRight, Tag, Clock, Users, Activity, Zap, Heart, Grid3X3, Eye, Star, MapPin } from 'lucide-react';
 import BannerAd from '@/components/shared/banner-ad';
 import AdBanner from '@/components/shared/ad-banner';
 import { ListingCard } from '@/components/shared/listing-card';
