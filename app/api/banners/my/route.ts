@@ -117,6 +117,8 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'Payment method and proof are required' }, { status: 400 });
       }
 
+      console.log('[BannerPayment] Payment proof upload succeeded for banner:', id, 'title:', existing.title);
+
       const banner = await prisma.bannerAd.update({
         where: { id },
         data: {
@@ -143,6 +145,42 @@ export async function PUT(request: NextRequest) {
           reference: paymentReference || null,
         },
       });
+
+      console.log('[BannerPayment] FeePayment record created for banner:', id);
+
+      // Notify all admin users about the payment proof submission
+      try {
+        const admins = await prisma.user.findMany({
+          where: { role: 'ADMIN' },
+          select: { id: true },
+        });
+
+        console.log('[BannerPayment] Found admin users:', admins.length);
+
+        if (admins.length > 0) {
+          const notificationPayload = admins.map((admin) => ({
+            userId: admin.id,
+            type: 'PAYMENT_RECEIVED' as const,
+            title: 'Banner Payment Proof Submitted',
+            message: `Payment proof was submitted for banner ad "${existing.title}" and is awaiting verification.`,
+            linkUrl: '/admin/banners',
+            read: false,
+          }));
+
+          console.log('[BannerPayment] Creating admin notifications:', JSON.stringify(notificationPayload));
+
+          await prisma.notification.createMany({
+            data: notificationPayload,
+          });
+
+          console.log('[BannerPayment] Admin notifications created successfully for banner:', id);
+        } else {
+          console.warn('[BannerPayment] No admin users found — no notification created for banner:', id);
+        }
+      } catch (notifError) {
+        console.error('[BannerPayment] Failed to create admin notification for banner:', id, notifError);
+        // Do not fail the whole request — proof was already saved
+      }
 
       return NextResponse.json({
         banner,
