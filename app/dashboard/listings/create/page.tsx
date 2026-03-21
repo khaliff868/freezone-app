@@ -32,6 +32,13 @@ const CATEGORIES = [
 const HOUSE_LAND_SUBCATEGORIES = ['House', 'Land'];
 const HOUSE_TRANSACTION_TYPES = ['For Sale', 'For Rent'];
 
+const VEHICLE_MAKES = [
+  'Audi', 'BMW', 'Chevrolet', 'Dodge', 'Ford', 'Honda', 'Hyundai', 'Isuzu',
+  'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Mazda', 'Mercedes-Benz', 'Mini',
+  'Mitsubishi', 'Nissan', 'Peugeot', 'Porsche', 'Subaru', 'Suzuki', 'Toyota',
+  'Volkswagen', 'Volvo', 'Other',
+];
+
 const CONDITIONS = [
   { value: 'NEW', label: 'New', description: 'Brand new, never used' },
   { value: 'LIKE_NEW', label: 'Like New', description: 'Barely used, excellent condition' },
@@ -81,34 +88,43 @@ export default function CreateListingPage() {
   });
 
   // House & Land sub-selections
-  const [houseLandSubcategory, setHouseLandSubcategory] = useState(''); // 'House' | 'Land'
-  const [houseTransactionType, setHouseTransactionType] = useState(''); // 'For Sale' | 'For Rent'
+  const [houseLandSubcategory, setHouseLandSubcategory] = useState('');
+  const [houseTransactionType, setHouseTransactionType] = useState('');
+  // Vehicles sub-selection
+  const [vehicleMake, setVehicleMake] = useState('');
 
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const isHouseLand = formData.category === 'House & Land';
+  const isVehicles = formData.category === 'Vehicles';
 
   // Build the final category string that gets saved
   const getFinalCategory = () => {
-    if (!isHouseLand) return formData.category;
-    if (houseLandSubcategory === 'House' && houseTransactionType) {
-      return `House & Land - House ${houseTransactionType}`;
+    if (isHouseLand) {
+      if (houseLandSubcategory === 'House' && houseTransactionType) {
+        return `House & Land - House ${houseTransactionType}`;
+      }
+      if (houseLandSubcategory === 'Land') return 'House & Land - Land';
+      return 'House & Land';
     }
-    if (houseLandSubcategory === 'Land') {
-      return 'House & Land - Land';
+    if (isVehicles && vehicleMake) {
+      return `Vehicles - ${vehicleMake}`;
     }
-    return 'House & Land';
+    return formData.category;
   };
 
-  // Reset sub-selections when category changes away from House & Land
+  // Reset sub-selections when category changes
   useEffect(() => {
     if (!isHouseLand) {
       setHouseLandSubcategory('');
       setHouseTransactionType('');
     }
-  }, [formData.category, isHouseLand]);
+    if (!isVehicles) {
+      setVehicleMake('');
+    }
+  }, [formData.category, isHouseLand, isVehicles]);
 
   // Reset house transaction type when subcategory changes
   useEffect(() => {
@@ -198,6 +214,11 @@ export default function CreateListingPage() {
       if (houseLandSubcategory === 'House' && !houseTransactionType) {
         toast.error('Please select For Sale or For Rent'); return;
       }
+    }
+
+    // Validate Vehicles make
+    if (isVehicles && !vehicleMake) {
+      toast.error('Please select a vehicle make'); return;
     }
 
     if (!formData.condition) { toast.error('Please select a condition'); return; }
@@ -386,6 +407,31 @@ export default function CreateListingPage() {
                   {getFinalCategory() !== 'House & Land' && (
                     <p className="text-xs text-gray-500">
                       Will be saved as: <span className="font-semibold text-gray-700">{getFinalCategory()}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Vehicles make dropdown */}
+              {isVehicles && (
+                <div className="space-y-4 p-4 bg-trini-red/5 border border-trini-red/20 rounded-xl">
+                  <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    🚗 Vehicle Details
+                  </p>
+                  <div>
+                    <Label className="text-sm mb-2 block">Make / Brand</Label>
+                    <Select value={vehicleMake} onValueChange={setVehicleMake}>
+                      <SelectTrigger><SelectValue placeholder="Select vehicle make" /></SelectTrigger>
+                      <SelectContent>
+                        {VEHICLE_MAKES.map((make) => (
+                          <SelectItem key={make} value={make}>{make}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {vehicleMake && (
+                    <p className="text-xs text-gray-500">
+                      Will be saved as: <span className="font-semibold text-gray-700">Vehicles - {vehicleMake}</span>
                     </p>
                   )}
                 </div>
