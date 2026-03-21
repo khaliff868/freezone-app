@@ -17,7 +17,10 @@ const CATEGORIES_DATA: Record<string, { emoji: string; color: string }> = {
   'Electronics': { emoji: '📱', color: 'from-caribbean-teal to-caribbean-ocean' },
   'Vehicles': { emoji: '🚗', color: 'from-trini-red to-tropical-coral' },
   'Auto Parts & Accessories': { emoji: '🔧', color: 'from-gray-600 to-gray-800' },
-  'Real Estate': { emoji: '🏠', color: 'from-trini-gold to-tropical-orange' },
+  'House & Land': { emoji: '🏠', color: 'from-trini-gold to-tropical-orange' },
+  'House & Land - Land': { emoji: '🏡', color: 'from-trini-gold to-tropical-orange' },
+  'House & Land - House For Sale': { emoji: '🏠', color: 'from-trini-gold to-tropical-orange' },
+  'House & Land - House For Rent': { emoji: '🔑', color: 'from-trini-gold to-tropical-orange' },
   'Construction Materials': { emoji: '🧱', color: 'from-tropical-orange to-trini-red' },
   'Home & Garden': { emoji: '🏡', color: 'from-caribbean-green to-tropical-lime' },
   'Furniture': { emoji: '🪑', color: 'from-tropical-coral to-trini-gold' },
@@ -95,7 +98,9 @@ export default async function HomePage() {
 
   const categoryMap: Record<string, number> = {};
   allListings.forEach(l => {
-    categoryMap[l.category] = (categoryMap[l.category] || 0) + 1;
+    // Roll up House & Land subcategories under the parent category
+    const cat = l.category.startsWith('House & Land') ? 'House & Land' : l.category;
+    categoryMap[cat] = (categoryMap[cat] || 0) + 1;
   });
   const popularCategories = Object.entries(categoryMap)
     .sort((a, b) => b[1] - a[1])
