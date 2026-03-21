@@ -86,6 +86,7 @@ export default function ListingDetailPage() {
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [uploadingProof, setUploadingProof] = useState(false);
+  const [proofSubmitted, setProofSubmitted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [togglingWishlist, setTogglingWishlist] = useState(false);
@@ -307,22 +308,9 @@ export default function ListingDetailPage() {
       if (proofRes.ok) {
         console.log('[UploadProof] Proof saved successfully');
 
-        // Send "Proof Submitted" message to seller
-        try {
-          await fetch('/api/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              recipientId: listing?.user.id,
-              listingId: listing?.id,
-              initialMessage: `✅ Proof of payment submitted for "${listing?.title}". Reference: ${paymentInfo.reference}. Awaiting admin verification.`,
-            }),
-          });
-        } catch (msgError) {
-          console.error('[UploadProof] Failed to send proof message:', msgError);
-        }
-
-        toast.success('Proof submitted! The seller has been notified. We will verify your payment within 24-48 hours.');
+        // Notify via toast - proof submitted successfully
+        toast.success('✅ Proof submitted! Admin will verify your payment within 24-48 hours.');
+        setProofSubmitted(true);
         setShowPaymentModal(false);
         loadListing();
       } else {
@@ -674,6 +662,13 @@ export default function ListingDetailPage() {
                 {isSold && (
                   <div className="p-3 bg-caribbean-ocean/10 border border-caribbean-ocean/20 rounded-xl text-sm text-caribbean-ocean font-medium">
                     <ShoppingBag className="w-4 h-4 inline mr-2" />This listing has been marked as sold.
+                  </div>
+                )}
+
+                {proofSubmitted && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800 font-medium flex items-center gap-2">
+                    <Check className="w-4 h-4 flex-shrink-0" />
+                    Proof submitted! Awaiting admin verification.
                   </div>
                 )}
 
