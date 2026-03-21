@@ -166,7 +166,6 @@ export default function CreateListingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!formData.title.trim()) { toast.error('Please enter a title'); return; }
     if (formData.title.trim().length < 3) { toast.error('Title must be between 3 and 50 characters'); return; }
     if (formData.title.trim().length > 50) { toast.error('Title must be between 3 and 50 characters'); return; }
@@ -355,9 +354,9 @@ export default function CreateListingPage() {
                       })}
                       className={cn('p-3 rounded-lg border-2 transition-all text-left', formData.listingType === type.value ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30')}
                     >
-                      <type.icon className={cn('w-5 h-5 mb-1', formData.listingType === type.value ? 'text-primary' : 'text-muted-foreground')} />
-                      <div className="font-medium text-sm">{type.label}</div>
-                      <div className="text-xs text-muted-foreground">{type.description}</div>
+                      <type.icon className={cn('w-5 h-5 mb-1', formData.listingType === type.value ? 'text-primary' : type.value === 'FREE' ? 'text-green-600' : 'text-muted-foreground')} />
+                      <div className={cn('font-medium text-sm', type.value === 'FREE' ? 'text-green-600' : '')}>{type.label}</div>
+                      <div className={cn('text-xs', type.value === 'FREE' ? 'text-green-500' : 'text-muted-foreground')}>{type.description}</div>
                     </button>
                   ))}
                 </div>
