@@ -2,36 +2,33 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Mail, Lock, ArrowRight, Sparkles, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || '/';
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
+  const [formData, setFormData] = useState({ email: '', password: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const result = await signIn('credentials', {
         email: formData.email,
         password: formData.password,
         redirect: false,
       });
-
       if (result?.error) {
         toast.error(result.error);
       } else if (result?.ok) {
         toast.success('Login successful!');
-        router.push('/');
+        router.push(callbackUrl);
         router.refresh();
       }
     } catch (error) {
@@ -52,7 +49,7 @@ export default function LoginPage() {
             </div>
           </div>
           <h1 className="text-4xl font-extrabold text-white mb-2">
-            Freezone <span className="text-trini-gold">Swap</span> or <span className="text-tropical-orange">Sell</span>
+            Freezone <span className="text-trini-gold">Sell</span><span className="text-white">/</span><span className="text-trini-gold">Swap</span><span className="text-white"> or Free</span>
           </h1>
           <p className="text-white/70">Sign in to your account</p>
         </div>
@@ -60,9 +57,7 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                Email Address
-              </label>
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-gradient-to-br from-trini-red to-tropical-orange rounded-lg flex items-center justify-center">
                   <Mail className="text-white" size={16} />
@@ -81,12 +76,8 @@ export default function LoginPage() {
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
-                  Password
-                </label>
-                <Link href="/auth/forgot-password" className="text-sm text-trini-red hover:text-tropical-orange font-medium transition">
-                  Forgot Password?
-                </Link>
+                <label htmlFor="password" className="block text-sm font-semibold text-gray-700">Password</label>
+                <Link href="/auth/forgot-password" className="text-sm text-trini-red hover:text-tropical-orange font-medium transition">Forgot Password?</Link>
               </div>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-gradient-to-br from-caribbean-teal to-caribbean-ocean rounded-lg flex items-center justify-center">
@@ -101,11 +92,7 @@ export default function LoginPage() {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
-                >
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
@@ -122,10 +109,7 @@ export default function LoginPage() {
                   Signing in...
                 </div>
               ) : (
-                <>
-                  Sign In
-                  <ArrowRight size={20} />
-                </>
+                <>Sign In<ArrowRight size={20} /></>
               )}
             </button>
           </form>
@@ -133,7 +117,10 @@ export default function LoginPage() {
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               Don&apos;t have an account?{' '}
-              <Link href="/auth/signup" className="text-trini-red hover:text-tropical-orange font-bold transition">
+              <Link
+                href={`/auth/signup${callbackUrl !== '/' ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`}
+                className="text-trini-red hover:text-tropical-orange font-bold transition"
+              >
                 Sign up
               </Link>
             </p>
