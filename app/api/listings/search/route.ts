@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Category filter — use startsWith for House & Land to match all subcategories
+    // Use startsWith for House & Land to match all subcategories
     if (category) {
       if (category === 'House & Land') {
         where.category = { startsWith: 'House & Land' };
@@ -80,14 +80,13 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    // Get categories — roll up House & Land subcategories under parent
+    // Roll up House & Land subcategories into one count
     const rawCategories = await prisma.listing.groupBy({
       by: ['category'],
       where: { status: 'ACTIVE' },
       _count: { category: true },
     });
 
-    // Merge all House & Land subcategories into one entry
     const categoryMap: Record<string, number> = {};
     for (const c of rawCategories) {
       const key = c.category.startsWith('House & Land') ? 'House & Land' : c.category;
@@ -111,7 +110,10 @@ export async function GET(request: NextRequest) {
       },
       filters: {
         categories,
-        locations: locations.map((l: { location: string; _count: { location: number } }) => ({ name: l.location, count: l._count.location })),
+        locations: locations.map((l: { location: string; _count: { location: number } }) => ({
+          name: l.location,
+          count: l._count.location,
+        })),
       },
     });
   } catch (error) {
