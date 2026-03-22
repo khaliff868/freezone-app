@@ -106,8 +106,8 @@ export async function GET(request: NextRequest) {
  * Approve, reject, or remove a listing
  *
  * Actions:
- * - approve: Approve pending_approval listing (for Free Items or renewals)
- * - approve_payment: Verify payment and move paid listing to pending approval
+ * - approve: Approve listing in Listing Management
+ * - approve_payment: Verify payment in Verify Payments
  * - reject: Reject a listing with reason
  * - remove: Remove a listing from the platform
  */
@@ -155,25 +155,49 @@ export async function PUT(request: NextRequest) {
       }
 
       const isFreeItems = listing.category === FREE_CATEGORY;
-      const expiryDays = isFreeItems
-        ? FREE_ITEMS_EXPIRY_DAYS
-        : PAID_LISTING_EXPIRY_DAYS;
 
-      let baseDate = now;
-      if (listing.expiresAt && listing.expiresAt > now) {
-        baseDate = listing.expiresAt;
+      // Free listings go live immediately
+      if (isFreeItems) {
+        let baseDate = now;
+        if (listing.expiresAt && listing.expiresAt > now) {
+          baseDate = listing.expiresAt;
+        }
+
+        const expiresAt = new Date(baseDate);
+        expiresAt.setDate(expiresAt.getDate() + FREE_ITEMS_EXPIRY_DAYS);
+
+        const updatedListing = await prisma.listing.update({
+          where: { id: listingId },
+          data: {
+            status: 'ACTIVE',
+            publishedAt: listing.publishedAt || now,
+            expiresAt,
+            activatedAt: now,
+          },
+          include: { user: { select: { id: true, name: true, email: true } } },
+        });
+
+        await prisma.notification.create({
+          data: {
+            userId: listing.userId,
+            type: 'LISTING_APPROVED',
+            title: 'Listing Approved',
+            message: `Your listing "${listing.title}" has been approved and is now live!`,
+            linkUrl: `/browse?listing=${listing.id}`,
+          },
+        });
+
+        return NextResponse.json({
+          message: 'Listing approved successfully',
+          listing: updatedListing,
+        });
       }
 
-      const expiresAt = new Date(baseDate);
-      expiresAt.setDate(expiresAt.getDate() + expiryDays);
-
+      // Paid listings go to Verify Payments
       const updatedListing = await prisma.listing.update({
         where: { id: listingId },
         data: {
-          status: 'ACTIVE',
-          publishedAt: listing.publishedAt || now,
-          expiresAt,
-          activatedAt: now,
+          status: 'PENDING_PAYMENT',
         },
         include: { user: { select: { id: true, name: true, email: true } } },
       });
@@ -183,13 +207,13 @@ export async function PUT(request: NextRequest) {
           userId: listing.userId,
           type: 'LISTING_APPROVED',
           title: 'Listing Approved',
-          message: `Your listing "${listing.title}" has been approved and is now live!`,
-          linkUrl: `/browse?listing=${listing.id}`,
+          message: `Your listing "${listing.title}" has been approved and is now awaiting payment verification.`,
+          linkUrl: `/dashboard/listings/${listing.id}`,
         },
       });
 
       return NextResponse.json({
-        message: 'Listing approved successfully',
+        message: 'Listing approved and moved to pending payment',
         listing: updatedListing,
       });
     }
@@ -220,10 +244,21 @@ export async function PUT(request: NextRequest) {
         },
       });
 
+      let baseDate = now;
+      if (listing.expiresAt && listing.expiresAt > now) {
+        baseDate = listing.expiresAt;
+      }
+
+      const expiresAt = new Date(baseDate);
+      expiresAt.setDate(expiresAt.getDate() + PAID_LISTING_EXPIRY_DAYS);
+
       const updatedListing = await prisma.listing.update({
         where: { id: listingId },
         data: {
-          status: 'PENDING_APPROVAL',
+          status: 'ACTIVE',
+          publishedAt: listing.publishedAt || now,
+          expiresAt,
+          activatedAt: now,
         },
         include: { user: { select: { id: true, name: true, email: true } } },
       });
@@ -233,13 +268,13 @@ export async function PUT(request: NextRequest) {
           userId: listing.userId,
           type: 'PAYMENT_RECEIVED',
           title: 'Payment Verified',
-          message: `Your payment for "${listing.title}" has been verified. Your listing is now pending approval.`,
+          message: `Your payment for "${listing.title}" has been verified. Your listing is now live!`,
           linkUrl: `/browse?listing=${listing.id}`,
         },
       });
 
       return NextResponse.json({
-        message: 'Payment verified and listing moved to pending approval',
+        message: 'Payment verified and listing activated',
         listing: updatedListing,
       });
     }
