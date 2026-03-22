@@ -142,7 +142,6 @@ export async function POST(request: NextRequest) {
       trialEndsAt = new Date(user.createdAt);
       trialEndsAt.setDate(trialEndsAt.getDate() + 7);
     }
-    const isInTrial = trialEndsAt ? now < trialEndsAt : false;
 
     let initialStatus: 'PENDING_APPROVAL' | 'PENDING_PAYMENT' | 'ACTIVE';
     let publishedAt: Date | null = null;
@@ -151,11 +150,6 @@ export async function POST(request: NextRequest) {
 
     if (isFreeItemsCategory) {
       initialStatus = 'PENDING_APPROVAL';
-    } else if (isInTrial) {
-      initialStatus = 'ACTIVE';
-      publishedAt = now;
-      expiresAt = new Date(now);
-      expiresAt.setDate(expiresAt.getDate() + PAID_LISTING_EXPIRY_DAYS);
     } else {
       initialStatus = 'PENDING_PAYMENT';
       requiresPayment = true;
