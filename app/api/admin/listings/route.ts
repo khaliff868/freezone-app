@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
  *
  * Actions:
  * - approve: Approve pending_approval listing (for Free Items or renewals)
- * - approve_payment: Verify payment and activate paid listing
+ * - approve_payment: Verify payment and move paid listing to pending approval
  * - reject: Reject a listing with reason
  * - remove: Remove a listing from the platform
  */
@@ -210,14 +210,6 @@ export async function PUT(request: NextRequest) {
         );
       }
 
-      let baseDate = now;
-      if (listing.expiresAt && listing.expiresAt > now) {
-        baseDate = listing.expiresAt;
-      }
-
-      const expiresAt = new Date(baseDate);
-      expiresAt.setDate(expiresAt.getDate() + PAID_LISTING_EXPIRY_DAYS);
-
       await prisma.feePayment.update({
         where: { id: pendingPayment.id },
         data: {
@@ -231,10 +223,7 @@ export async function PUT(request: NextRequest) {
       const updatedListing = await prisma.listing.update({
         where: { id: listingId },
         data: {
-          status: 'ACTIVE',
-          publishedAt: listing.publishedAt || now,
-          expiresAt,
-          activatedAt: now,
+          status: 'PENDING_APPROVAL',
         },
         include: { user: { select: { id: true, name: true, email: true } } },
       });
@@ -244,13 +233,13 @@ export async function PUT(request: NextRequest) {
           userId: listing.userId,
           type: 'PAYMENT_RECEIVED',
           title: 'Payment Verified',
-          message: `Your payment for "${listing.title}" has been verified. Your listing is now live!`,
+          message: `Your payment for "${listing.title}" has been verified. Your listing is now pending approval.`,
           linkUrl: `/browse?listing=${listing.id}`,
         },
       });
 
       return NextResponse.json({
-        message: 'Payment verified and listing activated',
+        message: 'Payment verified and listing moved to pending approval',
         listing: updatedListing,
       });
     }
