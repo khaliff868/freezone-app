@@ -46,6 +46,7 @@ type UserListing = {
 };
 
 type PaymentMethod = 'PAYPAL' | 'ONLINE_BANK' | 'BANK_DEPOSIT';
+type ListingPlan = 'FEATURED' | 'REGULAR';
 
 type PaymentInfo = {
   paymentId: string;
@@ -65,6 +66,21 @@ type PaymentInfo = {
   instructions?: string;
 };
 
+// Premium categories with higher Regular price
+const PREMIUM_CATEGORIES = ['House/Land', 'Business & Industrial', 'Vehicles'];
+
+function isPremiumCategory(category: string): boolean {
+  return PREMIUM_CATEGORIES.some(p => category === p || category.startsWith(`${p} -`) || category.startsWith(`${p} -`));
+}
+
+function getRegularPrice(category: string): number {
+  return isPremiumCategory(category) ? 100 : 25;
+}
+
+const FEATURED_PRICE = 300;
+const FEATURED_DAYS = 30;
+const REGULAR_DAYS = 90;
+
 export default function ListingDetailPage() {
   const { data: session, status } = useSession() || {};
   const params = useParams();
@@ -81,7 +97,8 @@ export default function ListingDetailPage() {
   const [selectedListing, setSelectedListing] = useState('');
   const [swapMessage, setSwapMessage] = useState('');
   const [sendingSwap, setSendingSwap] = useState(false);
-  const [paymentStep, setPaymentStep] = useState<'select' | 'details' | 'upload'>('select');
+  const [paymentStep, setPaymentStep] = useState<'plan' | 'method' | 'details'>('plan');
+  const [selectedPlan, setSelectedPlan] = useState<ListingPlan | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
@@ -96,7 +113,6 @@ export default function ListingDetailPage() {
 
   const listingId = params?.id as string;
 
-  // Redirect guests to login with callbackUrl
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.replace(`/auth/login?callbackUrl=/dashboard/listings/${listingId}`);
@@ -104,9 +120,7 @@ export default function ListingDetailPage() {
   }, [status, listingId, router]);
 
   const calculateTimeRemaining = useCallback(() => {
-    if (!listing || listing.status !== 'PENDING_PAYMENT') {
-      return { expired: false, timeString: '' };
-    }
+    if (!listing || listing.status !== 'PENDING_PAYMENT') return { expired: false, timeString: '' };
     const createdAt = new Date(listing.createdAt).getTime();
     const expiresAt = createdAt + 72 * 60 * 60 * 1000;
     const now = Date.now();
@@ -234,19 +248,26 @@ export default function ListingDetailPage() {
   const handlePayFee = () => {
     if (!session?.user?.id) { toast.error('Please login to pay'); return; }
     setShowPaymentModal(true);
-    setPaymentStep('select');
+    setPaymentStep('plan');
+    setSelectedPlan(null);
     setSelectedPaymentMethod(null);
     setPaymentInfo(null);
   };
 
+  const handleSelectPlan = (plan: ListingPlan) => {
+    setSelectedPlan(plan);
+    setPaymentStep('method');
+  };
+
   const handleSelectPaymentMethod = async (method: PaymentMethod) => {
+    if (!selectedPlan) return;
     setSelectedPaymentMethod(method);
     setProcessingPayment(true);
     try {
       const res = await fetch('/api/payments/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ listingId, method }),
+        body: JSON.stringify({ listingId, method, plan: selectedPlan }),
       });
       const data = await res.json();
       if (res.ok) { setPaymentInfo(data); setPaymentStep('details'); }
@@ -263,30 +284,14 @@ export default function ListingDetailPage() {
     toast.success(`${label} copied to clipboard!`);
   };
 
-  const handleUploadClick = () => {
-    console.log('[UploadProof] Upload button clicked');
-    fileInputRef.current?.click();
-  };
+  const handleUploadClick = () => { fileInputRef.current?.click(); };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    console.log('[UploadProof] File selected:', file?.name, file?.size);
     if (!file) return;
-
-    // Validate type
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
-    if (!allowed.includes(file.type)) {
-      toast.error('Only images (JPG, PNG, WebP) and PDF files are allowed');
-      event.target.value = '';
-      return;
-    }
-    // Validate size (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File must be under 10MB');
-      event.target.value = '';
-      return;
-    }
-
+    if (!allowed.includes(file.type)) { toast.error('Only images (JPG, PNG, WebP) and PDF files are allowed'); event.target.value = ''; return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error('File must be under 10MB'); event.target.value = ''; return; }
     await handleUploadProof(file);
     event.target.value = '';
   };
@@ -295,38 +300,26 @@ export default function ListingDetailPage() {
     if (!paymentInfo) return;
     setUploadingProof(true);
     try {
-      console.log('[UploadProof] Uploading to storage:', file.name);
       const formData = new FormData();
       formData.append('file', file);
       const uploadRes = await fetch('/api/upload/presigned', { method: 'POST', body: formData });
-      if (!uploadRes.ok) {
-        const err = await uploadRes.json().catch(() => ({}));
-        console.error('[UploadProof] Storage upload failed:', err);
-        throw new Error('Failed to upload file');
-      }
+      if (!uploadRes.ok) throw new Error('Failed to upload file');
       const { publicUrl } = await uploadRes.json();
-      console.log('[UploadProof] Storage upload success, publicUrl:', publicUrl);
-
       const proofRes = await fetch('/api/payments/upload-proof', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paymentId: paymentInfo.paymentId, proofUrl: publicUrl }),
       });
       if (proofRes.ok) {
-        console.log('[UploadProof] Proof saved successfully');
-
-        // Notify via toast - proof submitted successfully
         toast.success('✅ Proof submitted! Admin will verify your payment within 24-48 hours.');
         setProofSubmitted(true);
         setShowPaymentModal(false);
         loadListing();
       } else {
         const error = await proofRes.json();
-        console.error('[UploadProof] Proof save failed:', error);
         toast.error(error.error || 'Failed to save proof');
       }
     } catch (error) {
-      console.error('[UploadProof] Upload error:', error);
       toast.error('Failed to upload proof. Please try again.');
     } finally {
       setUploadingProof(false);
@@ -433,10 +426,10 @@ export default function ListingDetailPage() {
       'Electronics': 'from-caribbean-teal to-caribbean-ocean',
       'Vehicles': 'from-trini-red to-tropical-coral',
       'Auto Parts & Accessories': 'from-gray-600 to-gray-800',
-      'House & Land': 'from-trini-gold to-tropical-orange',
-      'House & Land - Land': 'from-trini-gold to-tropical-orange',
-      'House & Land - House For Sale': 'from-trini-gold to-tropical-orange',
-      'House & Land - House For Rent': 'from-trini-gold to-tropical-orange',
+      'House/Land': 'from-trini-gold to-tropical-orange',
+      'House/Land - Land': 'from-trini-gold to-tropical-orange',
+      'House/Land - House For Sale': 'from-trini-gold to-tropical-orange',
+      'House/Land - House For Rent': 'from-trini-gold to-tropical-orange',
       'Construction Materials': 'from-tropical-orange to-trini-red',
       'Home & Garden': 'from-caribbean-green to-tropical-lime',
       'Furniture': 'from-tropical-coral to-trini-gold',
@@ -460,7 +453,9 @@ export default function ListingDetailPage() {
     const emojis: Record<string, string> = {
       'Swaps': '🔄', 'Free Items': '🎁', 'Beauty & Personal Care': '💄',
       'Electronics': '📱', 'Vehicles': '🚗', 'Auto Parts & Accessories': '🔧',
-      'House & Land': '🏠', 'House & Land - Land': '🏡', 'House & Land - House For Sale': '🏠', 'House & Land - House For Rent': '🔑', 'Construction Materials': '🧱', 'Home & Garden': '🏡',
+      'House/Land': '🏠', 'House/Land - Land': '🏡',
+      'House/Land - House For Sale': '🏠', 'House/Land - House For Rent': '🔑',
+      'Construction Materials': '🧱', 'Home & Garden': '🏡',
       'Furniture': '🪑', 'Appliances': '🍳', 'Fashion': '👗',
       'Sports & Outdoors': '⚽', 'Books & Education': '📚', 'Kids & Baby': '👶',
       'Services': '🛠️', 'Food & Catering': '🍽️', 'Business & Industrial': '🏭',
@@ -472,6 +467,7 @@ export default function ListingDetailPage() {
 
   const isOwner = session?.user?.id === listing?.user?.id;
   const isSold = listing?.status === 'SOLD';
+  const regularPrice = listing ? getRegularPrice(listing.category) : 25;
 
   if (loading) {
     return (
@@ -521,7 +517,6 @@ export default function ListingDetailPage() {
                   </div>
                 </div>
               )}
-              {/* SOLD overlay */}
               {isSold && (
                 <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
                   <span className="text-white text-4xl font-extrabold tracking-widest bg-caribbean-ocean/80 px-6 py-3 rounded-2xl rotate-[-15deg] shadow-xl">SOLD</span>
@@ -543,7 +538,6 @@ export default function ListingDetailPage() {
                     onClick={toggleWishlist}
                     disabled={togglingWishlist}
                     className={`p-2 rounded-full shadow-md transition-colors ${isWishlisted ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
-                    title={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
                   >
                     {togglingWishlist ? <Loader2 className="w-5 h-5 animate-spin" /> : <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />}
                   </button>
@@ -601,7 +595,6 @@ export default function ListingDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Price Card */}
             {listing.price && (
               <div className="bg-gradient-to-br from-trini-red to-tropical-orange rounded-2xl shadow-xl p-6 text-white">
                 <p className="text-white/80 text-sm mb-1">Price</p>
@@ -657,7 +650,7 @@ export default function ListingDetailPage() {
 
                 {listing.status === 'PENDING_PAYMENT' && (
                   <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-800 mb-3">
-                    <AlertCircle className="w-4 h-4 inline mr-2" />Payment of 100 TTD required to publish this listing.
+                    <AlertCircle className="w-4 h-4 inline mr-2" />Payment required to publish this listing.
                     {!paymentExpired && timeRemaining && <p className="text-sm text-gray-600 mt-2">Payment request expires in: {timeRemaining}</p>}
                     {paymentExpired && <p className="text-sm text-red-600 mt-2 font-semibold">This payment request has expired. Please create a new request.</p>}
                   </div>
@@ -677,14 +670,13 @@ export default function ListingDetailPage() {
 
                 {proofSubmitted && (
                   <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800 font-medium flex items-center gap-2">
-                    <Check className="w-4 h-4 flex-shrink-0" />
-                    Proof submitted! Awaiting admin verification.
+                    <Check className="w-4 h-4 flex-shrink-0" />Proof submitted! Awaiting admin verification.
                   </div>
                 )}
 
                 {listing.status === 'PENDING_PAYMENT' && (
                   <button onClick={handlePayFee} disabled={paymentExpired} className={`w-full flex items-center justify-center gap-2 px-4 py-3 font-semibold rounded-xl transition-transform ${paymentExpired ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-caribbean-green to-tropical-lime text-white hover:scale-105'}`}>
-                    <CreditCard className="w-5 h-5" />{paymentExpired ? 'Payment Expired' : 'Submit Payment (100 TTD)'}
+                    <CreditCard className="w-5 h-5" />{paymentExpired ? 'Payment Expired' : 'Submit Payment'}
                   </button>
                 )}
 
@@ -699,10 +691,10 @@ export default function ListingDetailPage() {
 
                 {(listing.status === 'ACTIVE' || listing.status === 'EXPIRED') && listing.category !== 'Free Items' && (
                   <div>
-                    <button onClick={async () => { try { await apiClient(`/api/listings/${listing.id}/renew`, { method: 'POST' }); toast.success('Renewal initiated. Please submit payment.'); loadListing(); } catch (err: any) { toast.error(err.message || 'Failed to initiate renewal'); } }} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-trini-gold to-tropical-orange text-white font-semibold rounded-xl hover:scale-105 transition-transform">
-                      <RefreshCcw className="w-5 h-5" />Renew / Pay 100 TTD
+                    <button onClick={handlePayFee} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-trini-gold to-tropical-orange text-white font-semibold rounded-xl hover:scale-105 transition-transform">
+                      <RefreshCcw className="w-5 h-5" />Renew Listing
                     </button>
-                    <p className="text-xs text-gray-500 mt-2 text-center">Submit payment proof to activate or renew this listing for 90 days.</p>
+                    <p className="text-xs text-gray-500 mt-2 text-center">Choose a plan to renew your listing.</p>
                   </div>
                 )}
 
@@ -731,7 +723,7 @@ export default function ListingDetailPage() {
               </div>
             )}
 
-            {/* Contact Seller (not owner, not sold) */}
+            {/* Contact Seller */}
             {!isOwner && listing.status === 'ACTIVE' && !isSold && (
               <div className="bg-white rounded-2xl shadow-lg p-6 space-y-3">
                 <button onClick={handleContactSeller} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-ocean-blue text-white font-semibold rounded-xl hover:scale-105 transition-transform">
@@ -745,7 +737,6 @@ export default function ListingDetailPage() {
               </div>
             )}
 
-            {/* Sold banner for non-owners */}
             {!isOwner && isSold && (
               <div className="bg-caribbean-ocean/10 border border-caribbean-ocean/20 rounded-2xl p-6 text-center">
                 <ShoppingBag className="w-10 h-10 text-caribbean-ocean mx-auto mb-2" />
@@ -763,16 +754,83 @@ export default function ListingDetailPage() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-900">
-                {paymentStep === 'select' && 'Choose Payment Method'}
+                {paymentStep === 'plan' && 'Choose a Plan'}
+                {paymentStep === 'method' && 'Choose Payment Method'}
                 {paymentStep === 'details' && 'Payment Details'}
-                {paymentStep === 'upload' && 'Upload Payment Proof'}
               </h3>
               <button onClick={() => setShowPaymentModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition"><X className="w-5 h-5 text-gray-500" /></button>
             </div>
 
-            {paymentStep === 'select' && (
+            {/* Step 1: Plan Selection */}
+            {paymentStep === 'plan' && (
               <>
-                <p className="text-gray-600 mb-6">Select your preferred payment method to activate your listing.</p>
+                <p className="text-gray-600 mb-6">Select the plan that works best for you.</p>
+                <div className="space-y-4">
+
+                  {/* Featured Plan */}
+                  <button
+                    onClick={() => handleSelectPlan('FEATURED')}
+                    className="w-full text-left p-5 border-2 border-trini-gold rounded-xl hover:bg-trini-gold/5 transition group"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Star className="w-5 h-5 text-trini-gold fill-trini-gold" />
+                        <span className="text-lg font-bold text-gray-900">Featured</span>
+                        <span className="px-2 py-0.5 bg-trini-gold text-trini-black text-xs font-bold rounded-full">POPULAR</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-bold text-trini-gold">${FEATURED_PRICE}</span>
+                        <span className="text-gray-500 text-sm"> TTD</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-3">Highlighted listing with priority placement for {FEATURED_DAYS} days.</p>
+                    <ul className="space-y-1 text-sm text-gray-700">
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-trini-gold flex-shrink-0" />{FEATURED_DAYS} days active</li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-trini-gold flex-shrink-0" />Featured badge on listing</li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-trini-gold flex-shrink-0" />Priority placement in search</li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-trini-gold flex-shrink-0" />Shown in Featured section</li>
+                    </ul>
+                  </button>
+
+                  {/* Regular Plan */}
+                  <button
+                    onClick={() => handleSelectPlan('REGULAR')}
+                    className="w-full text-left p-5 border-2 border-gray-200 rounded-xl hover:border-caribbean-teal hover:bg-caribbean-teal/5 transition"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <ShoppingBag className="w-5 h-5 text-caribbean-teal" />
+                        <span className="text-lg font-bold text-gray-900">Regular</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-bold text-caribbean-teal">${regularPrice}</span>
+                        <span className="text-gray-500 text-sm"> TTD</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-3">Standard listing visible to all buyers for {REGULAR_DAYS} days.</p>
+                    <ul className="space-y-1 text-sm text-gray-700">
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-caribbean-teal flex-shrink-0" />{REGULAR_DAYS} days active</li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-caribbean-teal flex-shrink-0" />Visible in browse & search</li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-caribbean-teal flex-shrink-0" />Wishlist & messaging enabled</li>
+                    </ul>
+                    {isPremiumCategory(listing.category) && (
+                      <p className="text-xs text-gray-400 mt-3">* Higher rate applies for {listing.category.split(' - ')[0]} category</p>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Step 2: Payment Method */}
+            {paymentStep === 'method' && (
+              <>
+                <div className="mb-4 p-3 bg-gray-50 rounded-xl flex items-center justify-between">
+                  <span className="text-sm text-gray-600">
+                    {selectedPlan === 'FEATURED' ? `⭐ Featured — $${FEATURED_PRICE} TTD / ${FEATURED_DAYS} days` : `Regular — $${regularPrice} TTD / ${REGULAR_DAYS} days`}
+                  </span>
+                  <button onClick={() => setPaymentStep('plan')} className="text-xs text-caribbean-teal hover:underline">Change</button>
+                </div>
+                <p className="text-gray-600 mb-4">Select your preferred payment method.</p>
                 <div className="space-y-3">
                   <button onClick={() => handleSelectPaymentMethod('PAYPAL')} disabled={processingPayment} className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition disabled:opacity-50">
                     <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center"><span className="text-white font-bold text-lg">PP</span></div>
@@ -792,6 +850,7 @@ export default function ListingDetailPage() {
               </>
             )}
 
+            {/* Step 3: Payment Details */}
             {paymentStep === 'details' && paymentInfo && (
               <>
                 <div className="bg-gradient-to-r from-caribbean-green to-tropical-lime rounded-xl p-4 mb-6 text-white">
@@ -833,13 +892,7 @@ export default function ListingDetailPage() {
                       <p className="text-sm text-gray-700">{paymentInfo.instructions}</p>
                     </div>
                     <p className="text-sm text-gray-600 text-center mb-3">After making the transfer/deposit, upload your receipt or proof of payment.</p>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*,.pdf"
-                      className="hidden"
-                      onChange={handleFileChange}
-                    />
+                    <input ref={fileInputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleFileChange} />
                     <button
                       type="button"
                       onClick={handleUploadClick}
@@ -850,7 +903,7 @@ export default function ListingDetailPage() {
                     </button>
                   </>
                 )}
-                <button onClick={() => { setPaymentStep('select'); setPaymentInfo(null); setSelectedPaymentMethod(null); }} className="w-full mt-4 px-4 py-2 text-gray-600 hover:text-gray-900 transition text-sm">← Choose different payment method</button>
+                <button onClick={() => { setPaymentStep('method'); setPaymentInfo(null); setSelectedPaymentMethod(null); }} className="w-full mt-4 px-4 py-2 text-gray-600 hover:text-gray-900 transition text-sm">← Choose different payment method</button>
               </>
             )}
           </div>
