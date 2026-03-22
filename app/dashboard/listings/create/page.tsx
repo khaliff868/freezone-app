@@ -7,7 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   ArrowLeft, Upload, X, Loader2, ImagePlus, Package,
-  DollarSign, MapPin, FileText, Tag, ArrowRightLeft, Gift,
+  DollarSign, MapPin, FileText, Tag, ArrowRightLeft, Gift, Star, ShoppingBag,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,6 +55,18 @@ const VEHICLE_HIERARCHY: Record<string, string[]> = {
 };
 const VEHICLE_TYPES = Object.keys(VEHICLE_HIERARCHY);
 
+const PREMIUM_CATEGORIES = ['House/Land', 'Business & Industrial', 'Vehicles'];
+
+function isPremiumCategory(category: string): boolean {
+  return PREMIUM_CATEGORIES.some(
+    p => category === p || category.startsWith(`${p} - `) || category.startsWith(`${p} -`)
+  );
+}
+
+function getRegularPrice(category: string): number {
+  return isPremiumCategory(category) ? 100 : 25;
+}
+
 const CONDITIONS = [
   { value: 'NEW', label: 'New', description: 'Brand new, never used' },
   { value: 'LIKE_NEW', label: 'Like New', description: 'Barely used, excellent condition' },
@@ -86,6 +98,8 @@ const LOCATIONS = [
 
 const MAX_IMAGES = 8;
 
+type ListingPlan = 'FEATURED' | 'REGULAR';
+
 export default function CreateListingPage() {
   const { data: session, status } = useSession() || {};
   const router = useRouter();
@@ -100,13 +114,23 @@ export default function CreateListingPage() {
   const [houseTransactionType, setHouseTransactionType] = useState('');
   const [vehicleType, setVehicleType] = useState('');
   const [vehicleMake, setVehicleMake] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState<ListingPlan | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const isHouseLand = formData.category === 'House/Land';
   const isVehicles = formData.category === 'Vehicles';
+  const isFreeItems = formData.category === 'Free Items';
+  const isFreeType = formData.listingType === 'FREE';
+  const showPlanSelector = !isFreeItems && !isFreeType;
   const availableMakes = vehicleType ? VEHICLE_HIERARCHY[vehicleType] || [] : [];
+  const regularPrice = getRegularPrice(getFinalCategoryForPricing());
+
+  function getFinalCategoryForPricing() {
+    if (isVehicles && vehicleType) return `Vehicles - ${vehicleType}`;
+    return formData.category;
+  }
 
   const getFinalCategory = () => {
     if (isHouseLand) {
@@ -132,6 +156,11 @@ export default function CreateListingPage() {
   }, [houseLandSubcategory]);
 
   useEffect(() => { setVehicleMake(''); }, [vehicleType]);
+
+  // Reset plan when switching to free
+  useEffect(() => {
+    if (isFreeItems || isFreeType) setSelectedPlan(null);
+  }, [isFreeItems, isFreeType]);
 
   useEffect(() => {
     const typeParam = searchParams.get('type');
@@ -199,6 +228,7 @@ export default function CreateListingPage() {
     if ((formData.listingType === 'SELL' || formData.listingType === 'BOTH') && !formData.price) { toast.error('Please enter a price'); return; }
     if ((formData.listingType === 'SWAP' || formData.listingType === 'BOTH') && formData.swapTerms.trim().length > 0 && formData.swapTerms.trim().length < 3) { toast.error('Swap terms must be between 3 and 500 characters'); return; }
     if ((formData.listingType === 'SWAP' || formData.listingType === 'BOTH') && formData.swapTerms.trim().length > 500) { toast.error('Swap terms must be between 3 and 500 characters'); return; }
+    if (showPlanSelector && !selectedPlan) { toast.error('Please select a listing plan'); return; }
 
     setSubmitting(true);
     try {
@@ -206,7 +236,9 @@ export default function CreateListingPage() {
         ...formData,
         category: getFinalCategory(),
         price: formData.listingType === 'FREE' ? null : (formData.price ? parseFloat(formData.price) : null),
+        swapTerms: formData.swapTerms.trim() || null,
         images,
+        plan: selectedPlan,
       };
       const res = await fetch('/api/listings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!res.ok) { const error = await res.json(); throw new Error(error.error || 'Failed to create listing'); }
@@ -412,6 +444,78 @@ export default function CreateListingPage() {
                     maxLength={500}
                   />
                   <p className="text-xs text-muted-foreground mt-1">{formData.swapTerms.length}/500 characters</p>
+                </div>
+              )}
+
+              {/* Plan Selector — hidden for Free Items category and Give Away Free type */}
+              {showPlanSelector && (
+                <div>
+                  <Label className="flex items-center gap-2 mb-3">
+                    <Star className="w-4 h-4" />Listing Plan <span className="text-red-500 ml-0.5">*</span>
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                    {/* Featured Plan */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlan('FEATURED')}
+                      className={cn(
+                        'text-left p-4 rounded-xl border-2 transition-all',
+                        selectedPlan === 'FEATURED'
+                          ? 'border-trini-gold bg-trini-gold/5'
+                          : 'border-muted hover:border-trini-gold/50'
+                      )}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Star className={cn('w-4 h-4', selectedPlan === 'FEATURED' ? 'text-trini-gold fill-trini-gold' : 'text-muted-foreground')} />
+                          <span className="font-semibold text-sm">Featured</span>
+                          <span className="text-xs px-1.5 py-0.5 bg-trini-gold text-trini-black font-bold rounded-full">POPULAR</span>
+                        </div>
+                        <div className={cn('w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0', selectedPlan === 'FEATURED' ? 'border-trini-gold bg-trini-gold' : 'border-muted-foreground')}>
+                          {selectedPlan === 'FEATURED' && <div className="w-2 h-2 rounded-full bg-white" />}
+                        </div>
+                      </div>
+                      <p className="text-2xl font-bold text-trini-gold">$300 <span className="text-sm font-normal text-muted-foreground">TTD</span></p>
+                      <p className="text-xs text-muted-foreground mt-1">30 days • Priority placement • Featured badge</p>
+                    </button>
+
+                    {/* Regular Plan */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlan('REGULAR')}
+                      className={cn(
+                        'text-left p-4 rounded-xl border-2 transition-all',
+                        selectedPlan === 'REGULAR'
+                          ? 'border-caribbean-teal bg-caribbean-teal/5'
+                          : 'border-muted hover:border-caribbean-teal/50'
+                      )}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <ShoppingBag className={cn('w-4 h-4', selectedPlan === 'REGULAR' ? 'text-caribbean-teal' : 'text-muted-foreground')} />
+                          <span className="font-semibold text-sm">Regular</span>
+                        </div>
+                        <div className={cn('w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0', selectedPlan === 'REGULAR' ? 'border-caribbean-teal bg-caribbean-teal' : 'border-muted-foreground')}>
+                          {selectedPlan === 'REGULAR' && <div className="w-2 h-2 rounded-full bg-white" />}
+                        </div>
+                      </div>
+                      <p className="text-2xl font-bold text-caribbean-teal">${regularPrice} <span className="text-sm font-normal text-muted-foreground">TTD</span></p>
+                      <p className="text-xs text-muted-foreground mt-1">90 days • Standard listing • Browse & search</p>
+                      {isPremiumCategory(formData.category) && (
+                        <p className="text-xs text-muted-foreground/70 mt-1">* Higher rate for {formData.category.split(' - ')[0]}</p>
+                      )}
+                    </button>
+                  </div>
+
+                  {!selectedPlan && (
+                    <p className="text-xs text-muted-foreground mt-2">Select a plan to continue. You will pay after your listing is created.</p>
+                  )}
+                  {selectedPlan && (
+                    <p className="text-xs text-green-600 mt-2 font-medium">
+                      ✓ {selectedPlan === 'FEATURED' ? 'Featured plan selected — $300 TTD / 30 days' : `Regular plan selected — $${regularPrice} TTD / 90 days`}
+                    </p>
+                  )}
                 </div>
               )}
 
