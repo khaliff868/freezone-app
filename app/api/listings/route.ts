@@ -24,7 +24,14 @@ const createListingSchema = z.object({
   price: z.number().nonnegative().nullable().optional(),
   currency: z.string().default('TTD'),
   listingType: z.enum(['SELL', 'SWAP', 'BOTH', 'FREE']),
-  swapTerms: z.string().min(3, 'Swap terms must be between 3 and 500 characters').max(500, 'Swap terms must be between 3 and 500 characters').nullable().optional(),
+  swapTerms: z
+    .string()
+    .max(500, 'Swap terms cannot exceed 500 characters')
+    .refine(val => val.length === 0 || val.length >= 3, {
+      message: 'Swap terms must be at least 3 characters',
+    })
+    .nullable()
+    .optional(),
   images: z.array(z.string()).max(8).default([]),
 }).refine((data) => {
   if ((data.listingType === 'SELL' || data.listingType === 'BOTH') &&
@@ -104,6 +111,14 @@ export async function POST(request: NextRequest) {
     const data = validationResult.data;
     if (data.listingType === 'FREE') data.price = null;
 
+    // Normalize swapTerms — set to null if empty string or not a swap listing
+    if (!data.swapTerms || data.swapTerms.trim().length === 0) {
+      data.swapTerms = null;
+    }
+    if (data.listingType === 'SELL' || data.listingType === 'FREE') {
+      data.swapTerms = null;
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { tier: true, sellListingsThisMonth: true, monthlyResetAt: true, trialEndsAt: true, createdAt: true },
@@ -166,10 +181,16 @@ export async function POST(request: NextRequest) {
     }
 
     let message = 'Listing created successfully';
-    if (initialStatus === 'PENDING_APPROVAL') message = 'Listing submitted for admin approval. It will be visible once approved.';
-    else if (initialStatus === 'PENDING_PAYMENT') message = `Listing created. Payment of ${LISTING_FEE_AMOUNT} TTD required to publish.`;
+    if (initialStatus === 'PENDING_APPROVAL') {
+      message = 'Listing submitted for admin approval. It will be visible once approved.';
+    } else if (initialStatus === 'PENDING_PAYMENT') {
+      message = 'Listing created. Please select a plan and submit payment to publish.';
+    }
 
-    return NextResponse.json({ message, listing, requiresPayment, paymentAmount: requiresPayment ? LISTING_FEE_AMOUNT : 0 }, { status: 201 });
+    return NextResponse.json(
+      { message, listing, requiresPayment, paymentAmount: requiresPayment ? LISTING_FEE_AMOUNT : 0 },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Error creating listing:', error);
     return NextResponse.json({ error: 'Failed to create listing' }, { status: 500 });
