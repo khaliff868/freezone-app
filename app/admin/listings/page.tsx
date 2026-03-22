@@ -1,25 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
-import {
-  CheckCircle,
-  XCircle,
-  Eye,
-  Image as ImageIcon,
-  Trash2,
-  ExternalLink,
-} from 'lucide-react';
-
-type FeePayment = {
-  id: string;
-  proofUploadUrl: string | null;
-  method: string;
-  status: string;
-  reference: string | null;
-};
+import { CheckCircle, XCircle, Eye, ExternalLink, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 type Listing = {
   id: string;
@@ -35,7 +19,7 @@ type Listing = {
     name: string;
     email: string;
   };
-  feePayments: FeePayment[];
+  feePayments: { status: string }[];
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -44,23 +28,16 @@ const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-800',
   EXPIRED: 'bg-gray-100 text-gray-800',
   REJECTED: 'bg-red-100 text-red-800',
-  REMOVED: 'bg-red-100 text-red-800',
-  DELETED: 'bg-red-100 text-red-800',
   DRAFT: 'bg-gray-100 text-gray-600',
   SOLD: 'bg-purple-100 text-purple-800',
   SWAPPED: 'bg-blue-100 text-blue-800',
 };
 
 export default function AdminListingsPage() {
-  const router = useRouter();
-
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
-  const [rejectModal, setRejectModal] = useState<{ open: boolean; listingId: string | null }>({
-    open: false,
-    listingId: null,
-  });
+  const [rejectModal, setRejectModal] = useState<{ open: boolean; listingId: string | null }>({ open: false, listingId: null });
   const [rejectReason, setRejectReason] = useState('');
   const [processing, setProcessing] = useState<string | null>(null);
 
@@ -82,25 +59,17 @@ export default function AdminListingsPage() {
     }
   };
 
-  const handleReview = (listingId: string) => {
-    router.push(`/listings/${listingId}`);
-  };
-
   const handleApprove = async (listingId: string, isPendingPayment: boolean) => {
     try {
       setProcessing(listingId);
-
       const action = isPendingPayment ? 'approve_payment' : 'approve';
-
       await apiClient('/api/admin/listings', {
         method: 'PUT',
         body: JSON.stringify({ listingId, action }),
       });
-
       toast.success(isPendingPayment ? 'Payment verified and listing activated' : 'Listing approved');
-      await loadListings();
+      loadListings();
     } catch (error: any) {
-      console.error('Approve error:', error);
       toast.error(error.message || 'Failed to approve listing');
     } finally {
       setProcessing(null);
@@ -112,10 +81,8 @@ export default function AdminListingsPage() {
       toast.error('Please provide a rejection reason');
       return;
     }
-
     try {
       setProcessing(rejectModal.listingId);
-
       await apiClient('/api/admin/listings', {
         method: 'PUT',
         body: JSON.stringify({
@@ -124,13 +91,11 @@ export default function AdminListingsPage() {
           reason: rejectReason,
         }),
       });
-
       toast.success('Listing rejected');
       setRejectModal({ open: false, listingId: null });
       setRejectReason('');
-      await loadListings();
+      loadListings();
     } catch (error: any) {
-      console.error('Reject error:', error);
       toast.error(error.message || 'Failed to reject listing');
     } finally {
       setProcessing(null);
@@ -138,33 +103,23 @@ export default function AdminListingsPage() {
   };
 
   const handleRemove = async (listingId: string) => {
-    const confirmed = window.confirm('Are you sure you want to remove this listing?');
-    if (!confirmed) return;
-
+    if (!confirm('Are you sure you want to remove this listing? This cannot be undone.')) return;
     try {
       setProcessing(listingId);
-
       await apiClient('/api/admin/listings', {
         method: 'PUT',
-        body: JSON.stringify({
-          listingId,
-          action: 'remove',
-        }),
+        body: JSON.stringify({ listingId, action: 'remove' }),
       });
-
       toast.success('Listing removed');
-      await loadListings();
+      loadListings();
     } catch (error: any) {
-      console.error('Remove error:', error);
       toast.error(error.message || 'Failed to remove listing');
     } finally {
       setProcessing(null);
     }
   };
 
-  const pendingCount = listings.filter((l) =>
-    ['PENDING_APPROVAL', 'PENDING_PAYMENT'].includes(l.status)
-  ).length;
+  const pendingCount = listings.filter(l => ['PENDING_APPROVAL', 'PENDING_PAYMENT'].includes(l.status)).length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -178,6 +133,7 @@ export default function AdminListingsPage() {
         </p>
       </div>
 
+      {/* Filter Tabs */}
       <div className="mb-6 flex flex-wrap gap-2">
         {[
           { key: 'all', label: 'All' },
@@ -206,95 +162,62 @@ export default function AdminListingsPage() {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Listing
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Payment
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Listing</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                    Loading listings...
-                  </td>
+                  <td colSpan={4} className="px-6 py-12 text-center text-gray-500">Loading listings...</td>
                 </tr>
               ) : listings.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                    No listings found
-                  </td>
+                  <td colSpan={4} className="px-6 py-12 text-center text-gray-500">No listings found</td>
                 </tr>
               ) : (
                 listings.map((listing) => {
-                  const pendingPayment = listing.feePayments?.find((p) => p.status === 'PENDING');
                   const isPendingApproval = listing.status === 'PENDING_APPROVAL';
                   const isPendingPayment = listing.status === 'PENDING_PAYMENT';
-                  const needsAction = isPendingApproval || isPendingPayment;
-                  const isRemoved = ['REMOVED', 'DELETED'].includes(listing.status);
-                  const canRemove = !isRemoved;
+                  const needsApproval = isPendingApproval || isPendingPayment;
+                  const isRemoved = listing.status === 'REJECTED';
 
                   return (
                     <tr
                       key={listing.id}
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                        needsAction ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''
-                      }`}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${needsApproval ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}`}
                     >
+                      {/* Listing */}
                       <td className="px-6 py-4">
                         <div className="flex items-start gap-3">
                           {listing.images?.[0] ? (
-                            <img
-                              src={listing.images[0]}
-                              alt={listing.title}
-                              className="w-12 h-12 rounded object-cover"
-                            />
+                            <img src={listing.images[0]} alt="" className="w-12 h-12 rounded object-cover flex-shrink-0" />
                           ) : (
-                            <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center">
+                            <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
                               <ImageIcon className="w-6 h-6 text-gray-400" />
                             </div>
                           )}
-
                           <div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">
-                              {listing.title}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {listing.category} • {listing.listingType}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {listing.price ? `$${listing.price} TTD` : 'No price'}
-                            </div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{listing.title}</div>
+                            <div className="text-xs text-gray-500">{listing.category} • {listing.listingType}</div>
+                            <div className="text-xs text-gray-500">{listing.price ? `$${listing.price} TTD` : 'No price'}</div>
                           </div>
                         </div>
                       </td>
 
+                      {/* User */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">{listing.user.name}</div>
                         <div className="text-xs text-gray-500">{listing.user.email}</div>
                       </td>
 
+                      {/* Status */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            STATUS_COLORS[listing.status] || 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${STATUS_COLORS[listing.status] || 'bg-gray-100 text-gray-800'}`}>
                           {listing.status.replace(/_/g, ' ')}
                         </span>
-
                         {listing.expiresAt && (
                           <div className="text-xs text-gray-500 mt-1">
                             Expires: {new Date(listing.expiresAt).toLocaleDateString()}
@@ -302,80 +225,50 @@ export default function AdminListingsPage() {
                         )}
                       </td>
 
+                      {/* Actions */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {pendingPayment ? (
-                          <div className="space-y-1">
-                            <div className="text-xs text-gray-600 dark:text-gray-400">
-                              {pendingPayment.method}
-                            </div>
-
-                            {pendingPayment.reference && (
-                              <div className="text-xs text-gray-500">
-                                Ref: {pendingPayment.reference}
-                              </div>
-                            )}
-
-                            {pendingPayment.proofUploadUrl && (
-                              <a
-                                href={pendingPayment.proofUploadUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                              >
-                                <Eye className="w-3 h-3" />
-                                View Proof
-                              </a>
-                            )}
-                          </div>
-                        ) : isPendingApproval ? (
-                          <span className="text-xs text-gray-500">Free item - no payment</span>
-                        ) : (
-                          <span className="text-xs text-gray-400">-</span>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            onClick={() => handleReview(listing.id)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700"
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* Review — always visible */}
+                          <a
+                            href={`/dashboard/listings/${listing.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition"
                           >
                             <ExternalLink className="w-3 h-3" />
                             Review
-                          </button>
+                          </a>
 
-                          {needsAction && (
-                            <>
-                              <button
-                                onClick={() => handleApprove(listing.id, isPendingPayment)}
-                                disabled={
-                                  processing === listing.id ||
-                                  (isPendingPayment && !pendingPayment?.proofUploadUrl)
-                                }
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                <CheckCircle className="w-3 h-3" />
-                                {isPendingPayment ? 'Verify Payment' : 'Approve'}
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  setRejectModal({ open: true, listingId: listing.id })
-                                }
-                                disabled={processing === listing.id}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 disabled:opacity-50"
-                              >
-                                <XCircle className="w-3 h-3" />
-                                Reject
-                              </button>
-                            </>
+                          {/* Approve — only for pending */}
+                          {needsApproval && (
+                            <button
+                              onClick={() => handleApprove(listing.id, isPendingPayment)}
+                              disabled={processing === listing.id}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                              {isPendingPayment ? 'Approve Payment' : 'Approve'}
+                            </button>
                           )}
 
-                          {canRemove && (
+                          {/* Reject — only for pending */}
+                          {needsApproval && (
+                            <button
+                              onClick={() => setRejectModal({ open: true, listingId: listing.id })}
+                              disabled={processing === listing.id}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 disabled:opacity-50 transition"
+                            >
+                              <XCircle className="w-3 h-3" />
+                              Reject
+                            </button>
+                          )}
+
+                          {/* Remove — for non-rejected listings */}
+                          {!isRemoved && (
                             <button
                               onClick={() => handleRemove(listing.id)}
                               disabled={processing === listing.id}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-700 text-white text-xs font-medium rounded hover:bg-gray-800 disabled:opacity-50"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-700 text-white text-xs font-medium rounded hover:bg-gray-900 disabled:opacity-50 transition"
                             >
                               <Trash2 className="w-3 h-3" />
                               Remove
@@ -392,11 +285,11 @@ export default function AdminListingsPage() {
         </div>
       </div>
 
+      {/* Reject Modal */}
       {rejectModal.open && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Reject Listing</h3>
-
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
@@ -404,18 +297,13 @@ export default function AdminListingsPage() {
               className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               rows={4}
             />
-
             <div className="flex justify-end gap-3 mt-4">
               <button
-                onClick={() => {
-                  setRejectModal({ open: false, listingId: null });
-                  setRejectReason('');
-                }}
+                onClick={() => { setRejectModal({ open: false, listingId: null }); setRejectReason(''); }}
                 className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800"
               >
                 Cancel
               </button>
-
               <button
                 onClick={handleReject}
                 disabled={!rejectReason.trim() || processing === rejectModal.listingId}
