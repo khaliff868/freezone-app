@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
-import { CheckCircle, XCircle, Eye, ExternalLink, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, ExternalLink, Image as ImageIcon, Trash2, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 type Listing = {
   id: string;
@@ -31,6 +32,7 @@ const STATUS_COLORS: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-600',
   SOLD: 'bg-purple-100 text-purple-800',
   SWAPPED: 'bg-blue-100 text-blue-800',
+  REMOVED: 'bg-red-100 text-red-800',
 };
 
 export default function AdminListingsPage() {
@@ -124,6 +126,9 @@ export default function AdminListingsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
+        <Link href="/admin" className="inline-flex items-center gap-1 text-gray-500 hover:text-gray-700 mb-4 text-sm">
+          <ArrowLeft className="w-4 h-4" />Back to Admin
+        </Link>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Listing Management</h1>
         <p className="mt-2 text-gray-600 dark:text-gray-400">
           Review and approve listings.{' '}
@@ -182,7 +187,7 @@ export default function AdminListingsPage() {
                   const isPendingApproval = listing.status === 'PENDING_APPROVAL';
                   const isPendingPayment = listing.status === 'PENDING_PAYMENT';
                   const needsApproval = isPendingApproval || isPendingPayment;
-                  const isRemoved = listing.status === 'REJECTED';
+                  const isRemoved = listing.status === 'REJECTED' || listing.status === 'REMOVED';
 
                   return (
                     <tr
