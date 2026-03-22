@@ -7,7 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   ArrowLeft, Upload, X, Loader2, ImagePlus, Package,
-  DollarSign, MapPin, FileText, Tag, ArrowRightLeft, Gift, Star, ShoppingBag,
+  DollarSign, MapPin, FileText, Tag, ArrowRightLeft, Gift, Star, ShoppingBag, AlertCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -97,8 +97,31 @@ const LOCATIONS = [
 ];
 
 const MAX_IMAGES = 8;
-
 type ListingPlan = 'FEATURED' | 'REGULAR';
+
+type FormErrors = {
+  title?: string;
+  description?: string;
+  category?: string;
+  houseLandSubcategory?: string;
+  houseTransactionType?: string;
+  vehicleType?: string;
+  vehicleMake?: string;
+  condition?: string;
+  location?: string;
+  price?: string;
+  swapTerms?: string;
+  plan?: string;
+};
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p className="flex items-center gap-1 text-xs text-red-500 mt-1">
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />{message}
+    </p>
+  );
+}
 
 export default function CreateListingPage() {
   const { data: session, status } = useSession() || {};
@@ -118,6 +141,7 @@ export default function CreateListingPage() {
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>({});
 
   const isHouseLand = formData.category === 'House/Land';
   const isVehicles = formData.category === 'Vehicles';
@@ -125,12 +149,7 @@ export default function CreateListingPage() {
   const isFreeType = formData.listingType === 'FREE';
   const showPlanSelector = !isFreeItems && !isFreeType;
   const availableMakes = vehicleType ? VEHICLE_HIERARCHY[vehicleType] || [] : [];
-  const regularPrice = getRegularPrice(getFinalCategoryForPricing());
-
-  function getFinalCategoryForPricing() {
-    if (isVehicles && vehicleType) return `Vehicles - ${vehicleType}`;
-    return formData.category;
-  }
+  const regularPrice = getRegularPrice(formData.category);
 
   const getFinalCategory = () => {
     if (isHouseLand) {
@@ -157,7 +176,6 @@ export default function CreateListingPage() {
 
   useEffect(() => { setVehicleMake(''); }, [vehicleType]);
 
-  // Reset plan when switching to free
   useEffect(() => {
     if (isFreeItems || isFreeType) setSelectedPlan(null);
   }, [isFreeItems, isFreeType]);
@@ -173,6 +191,11 @@ export default function CreateListingPage() {
       }));
     }
   }, [searchParams]);
+
+  // Clear field error when user fixes it
+  const clearError = (field: keyof FormErrors) => {
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: undefined }));
+  };
 
   if (status === 'loading') return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (status === 'unauthenticated') { router.push('/auth/login'); return null; }
@@ -207,28 +230,77 @@ export default function CreateListingPage() {
 
   const removeImage = (index: number) => setImages(prev => prev.filter((_, i) => i !== index));
 
+  const validate = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    if (!formData.title.trim()) {
+      newErrors.title = 'Title is required';
+    } else if (formData.title.trim().length < 3) {
+      newErrors.title = 'Title must be at least 3 characters';
+    } else if (formData.title.trim().length > 50) {
+      newErrors.title = 'Title cannot exceed 50 characters';
+    }
+
+    if (!formData.description.trim()) {
+      newErrors.description = 'Description is required';
+    } else if (formData.description.trim().length > 500) {
+      newErrors.description = 'Description cannot exceed 500 characters';
+    }
+
+    if (!formData.category) {
+      newErrors.category = 'Please select a category';
+    }
+
+    if (isHouseLand) {
+      if (!houseLandSubcategory) newErrors.houseLandSubcategory = 'Please select House or Land';
+      else if (houseLandSubcategory === 'House' && !houseTransactionType) {
+        newErrors.houseTransactionType = 'Please select For Sale or For Rent';
+      }
+    }
+
+    if (isVehicles) {
+      if (!vehicleType) newErrors.vehicleType = 'Please select a vehicle type';
+      else if (!vehicleMake) newErrors.vehicleMake = 'Please select a vehicle make';
+    }
+
+    if (!formData.condition) {
+      newErrors.condition = 'Please select a condition';
+    }
+
+    if (!formData.location) {
+      newErrors.location = 'Please select a location';
+    }
+
+    if ((formData.listingType === 'SELL' || formData.listingType === 'BOTH') && !formData.price) {
+      newErrors.price = 'Price is required';
+    }
+
+    if ((formData.listingType === 'SWAP' || formData.listingType === 'BOTH') && formData.swapTerms.trim().length > 0) {
+      if (formData.swapTerms.trim().length < 3) newErrors.swapTerms = 'Swap terms must be at least 3 characters';
+      else if (formData.swapTerms.trim().length > 500) newErrors.swapTerms = 'Swap terms cannot exceed 500 characters';
+    }
+
+    if (showPlanSelector && !selectedPlan) {
+      newErrors.plan = 'Please select a listing plan';
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      // Scroll to first error
+      const firstErrorField = Object.keys(newErrors)[0];
+      const el = document.getElementById(firstErrorField) || document.querySelector(`[data-field="${firstErrorField}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      toast.error('Please fill in all required fields');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title.trim()) { toast.error('Please enter a title'); return; }
-    if (formData.title.trim().length < 3) { toast.error('Title must be between 3 and 50 characters'); return; }
-    if (formData.title.trim().length > 50) { toast.error('Title must be between 3 and 50 characters'); return; }
-    if (!formData.description.trim()) { toast.error('Please enter a description'); return; }
-    if (formData.description.trim().length > 500) { toast.error('Description cannot exceed 500 characters'); return; }
-    if (!formData.category) { toast.error('Please select a category'); return; }
-    if (isHouseLand) {
-      if (!houseLandSubcategory) { toast.error('Please select House or Land'); return; }
-      if (houseLandSubcategory === 'House' && !houseTransactionType) { toast.error('Please select For Sale or For Rent'); return; }
-    }
-    if (isVehicles) {
-      if (!vehicleType) { toast.error('Please select a vehicle type'); return; }
-      if (!vehicleMake) { toast.error('Please select a vehicle make'); return; }
-    }
-    if (!formData.condition) { toast.error('Please select a condition'); return; }
-    if (!formData.location) { toast.error('Please select a location'); return; }
-    if ((formData.listingType === 'SELL' || formData.listingType === 'BOTH') && !formData.price) { toast.error('Please enter a price'); return; }
-    if ((formData.listingType === 'SWAP' || formData.listingType === 'BOTH') && formData.swapTerms.trim().length > 0 && formData.swapTerms.trim().length < 3) { toast.error('Swap terms must be between 3 and 500 characters'); return; }
-    if ((formData.listingType === 'SWAP' || formData.listingType === 'BOTH') && formData.swapTerms.trim().length > 500) { toast.error('Swap terms must be between 3 and 500 characters'); return; }
-    if (showPlanSelector && !selectedPlan) { toast.error('Please select a listing plan'); return; }
+    if (!validate()) return;
 
     setSubmitting(true);
     try {
@@ -291,47 +363,67 @@ export default function CreateListingPage() {
 
               {/* Title */}
               <div>
-                <Label htmlFor="title" className="flex items-center gap-2 mb-2"><FileText className="w-4 h-4" />Title</Label>
+                <Label htmlFor="title" className="flex items-center gap-2 mb-2"><FileText className="w-4 h-4" />Title <span className="text-red-500">*</span></Label>
                 <Input
                   id="title"
                   placeholder="What are you selling, swapping or giving free?"
                   value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  onChange={(e) => { setFormData(prev => ({ ...prev, title: e.target.value })); clearError('title'); }}
                   minLength={3}
                   maxLength={50}
+                  className={cn(errors.title && 'border-red-500 focus-visible:ring-red-500')}
                 />
-                <p className="text-xs text-muted-foreground mt-1">{formData.title.length}/50 characters</p>
+                <div className="flex items-center justify-between mt-1">
+                  <FieldError message={errors.title} />
+                  <p className="text-xs text-muted-foreground ml-auto">{formData.title.length}/50</p>
+                </div>
               </div>
 
               {/* Description */}
               <div>
-                <Label htmlFor="description" className="flex items-center gap-2 mb-2"><FileText className="w-4 h-4" />Description</Label>
+                <Label htmlFor="description" className="flex items-center gap-2 mb-2"><FileText className="w-4 h-4" />Description <span className="text-red-500">*</span></Label>
                 <Textarea
                   id="description"
                   placeholder="Describe your item in detail..."
                   value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={(e) => { setFormData(prev => ({ ...prev, description: e.target.value })); clearError('description'); }}
                   rows={4}
                   maxLength={500}
+                  className={cn(errors.description && 'border-red-500 focus-visible:ring-red-500')}
                 />
-                <p className="text-xs text-muted-foreground mt-1">{formData.description.length}/500 characters</p>
+                <div className="flex items-center justify-between mt-1">
+                  <FieldError message={errors.description} />
+                  <p className="text-xs text-muted-foreground ml-auto">{formData.description.length}/500</p>
+                </div>
               </div>
 
               {/* Category & Condition */}
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="flex items-center gap-2 mb-2"><Tag className="w-4 h-4" />Category</Label>
-                  <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
-                    <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                <div data-field="category">
+                  <Label className="flex items-center gap-2 mb-2"><Tag className="w-4 h-4" />Category <span className="text-red-500">*</span></Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => { setFormData(prev => ({ ...prev, category: value })); clearError('category'); }}
+                  >
+                    <SelectTrigger className={cn(errors.category && 'border-red-500 ring-1 ring-red-500')}>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
                     <SelectContent>{CATEGORIES.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent>
                   </Select>
+                  <FieldError message={errors.category} />
                 </div>
-                <div>
-                  <Label className="flex items-center gap-2 mb-2"><Package className="w-4 h-4" />Condition</Label>
-                  <Select value={formData.condition} onValueChange={(value) => setFormData(prev => ({ ...prev, condition: value }))}>
-                    <SelectTrigger><SelectValue placeholder="Select condition" /></SelectTrigger>
+                <div data-field="condition">
+                  <Label className="flex items-center gap-2 mb-2"><Package className="w-4 h-4" />Condition <span className="text-red-500">*</span></Label>
+                  <Select
+                    value={formData.condition}
+                    onValueChange={(value) => { setFormData(prev => ({ ...prev, condition: value })); clearError('condition'); }}
+                  >
+                    <SelectTrigger className={cn(errors.condition && 'border-red-500 ring-1 ring-red-500')}>
+                      <SelectValue placeholder="Select condition" />
+                    </SelectTrigger>
                     <SelectContent>{CONDITIONS.map((cond) => <SelectItem key={cond.value} value={cond.value}>{cond.label}</SelectItem>)}</SelectContent>
                   </Select>
+                  <FieldError message={errors.condition} />
                 </div>
               </div>
 
@@ -339,20 +431,32 @@ export default function CreateListingPage() {
               {isHouseLand && (
                 <div className="space-y-4 p-4 bg-trini-gold/10 border border-trini-gold/20 rounded-xl">
                   <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">🏠 House/Land Details</p>
-                  <div>
-                    <Label className="text-sm mb-2 block">Property Type</Label>
-                    <Select value={houseLandSubcategory} onValueChange={setHouseLandSubcategory}>
-                      <SelectTrigger><SelectValue placeholder="Select property type" /></SelectTrigger>
+                  <div data-field="houseLandSubcategory">
+                    <Label className="text-sm mb-2 block">Property Type <span className="text-red-500">*</span></Label>
+                    <Select
+                      value={houseLandSubcategory}
+                      onValueChange={(v) => { setHouseLandSubcategory(v); clearError('houseLandSubcategory'); }}
+                    >
+                      <SelectTrigger className={cn(errors.houseLandSubcategory && 'border-red-500 ring-1 ring-red-500')}>
+                        <SelectValue placeholder="Select property type" />
+                      </SelectTrigger>
                       <SelectContent>{HOUSE_LAND_SUBCATEGORIES.map((sub) => <SelectItem key={sub} value={sub}>{sub}</SelectItem>)}</SelectContent>
                     </Select>
+                    <FieldError message={errors.houseLandSubcategory} />
                   </div>
                   {houseLandSubcategory === 'House' && (
-                    <div>
-                      <Label className="text-sm mb-2 block">Transaction Type</Label>
-                      <Select value={houseTransactionType} onValueChange={setHouseTransactionType}>
-                        <SelectTrigger><SelectValue placeholder="For Sale or For Rent?" /></SelectTrigger>
+                    <div data-field="houseTransactionType">
+                      <Label className="text-sm mb-2 block">Transaction Type <span className="text-red-500">*</span></Label>
+                      <Select
+                        value={houseTransactionType}
+                        onValueChange={(v) => { setHouseTransactionType(v); clearError('houseTransactionType'); }}
+                      >
+                        <SelectTrigger className={cn(errors.houseTransactionType && 'border-red-500 ring-1 ring-red-500')}>
+                          <SelectValue placeholder="For Sale or For Rent?" />
+                        </SelectTrigger>
                         <SelectContent>{HOUSE_TRANSACTION_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                       </Select>
+                      <FieldError message={errors.houseTransactionType} />
                     </div>
                   )}
                   {getFinalCategory() !== 'House/Land' && (
@@ -365,20 +469,32 @@ export default function CreateListingPage() {
               {isVehicles && (
                 <div className="space-y-4 p-4 bg-trini-red/5 border border-trini-red/20 rounded-xl">
                   <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">🚗 Vehicle Details</p>
-                  <div>
-                    <Label className="text-sm mb-2 block">Vehicle Type</Label>
-                    <Select value={vehicleType} onValueChange={setVehicleType}>
-                      <SelectTrigger><SelectValue placeholder="Select vehicle type" /></SelectTrigger>
+                  <div data-field="vehicleType">
+                    <Label className="text-sm mb-2 block">Vehicle Type <span className="text-red-500">*</span></Label>
+                    <Select
+                      value={vehicleType}
+                      onValueChange={(v) => { setVehicleType(v); clearError('vehicleType'); }}
+                    >
+                      <SelectTrigger className={cn(errors.vehicleType && 'border-red-500 ring-1 ring-red-500')}>
+                        <SelectValue placeholder="Select vehicle type" />
+                      </SelectTrigger>
                       <SelectContent>{VEHICLE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                     </Select>
+                    <FieldError message={errors.vehicleType} />
                   </div>
                   {vehicleType && (
-                    <div>
-                      <Label className="text-sm mb-2 block">Make / Brand</Label>
-                      <Select value={vehicleMake} onValueChange={setVehicleMake}>
-                        <SelectTrigger><SelectValue placeholder="Select make" /></SelectTrigger>
+                    <div data-field="vehicleMake">
+                      <Label className="text-sm mb-2 block">Make / Brand <span className="text-red-500">*</span></Label>
+                      <Select
+                        value={vehicleMake}
+                        onValueChange={(v) => { setVehicleMake(v); clearError('vehicleMake'); }}
+                      >
+                        <SelectTrigger className={cn(errors.vehicleMake && 'border-red-500 ring-1 ring-red-500')}>
+                          <SelectValue placeholder="Select make" />
+                        </SelectTrigger>
                         <SelectContent>{availableMakes.map((make) => <SelectItem key={make} value={make}>{make}</SelectItem>)}</SelectContent>
                       </Select>
+                      <FieldError message={errors.vehicleMake} />
                     </div>
                   )}
                   {vehicleType && vehicleMake && (
@@ -388,12 +504,18 @@ export default function CreateListingPage() {
               )}
 
               {/* Location */}
-              <div>
-                <Label className="flex items-center gap-2 mb-2"><MapPin className="w-4 h-4" />Location</Label>
-                <Select value={formData.location} onValueChange={(value) => setFormData(prev => ({ ...prev, location: value }))}>
-                  <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
+              <div data-field="location">
+                <Label className="flex items-center gap-2 mb-2"><MapPin className="w-4 h-4" />Location <span className="text-red-500">*</span></Label>
+                <Select
+                  value={formData.location}
+                  onValueChange={(value) => { setFormData(prev => ({ ...prev, location: value })); clearError('location'); }}
+                >
+                  <SelectTrigger className={cn(errors.location && 'border-red-500 ring-1 ring-red-500')}>
+                    <SelectValue placeholder="Select location" />
+                  </SelectTrigger>
                   <SelectContent>{LOCATIONS.map((loc) => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
                 </Select>
+                <FieldError message={errors.location} />
               </div>
 
               {/* Listing Type */}
@@ -424,9 +546,21 @@ export default function CreateListingPage() {
               {(formData.listingType === 'SELL' || formData.listingType === 'BOTH') && (
                 <div>
                   <Label htmlFor="price" className="flex items-center gap-2 mb-2">
-                    <DollarSign className="w-4 h-4" />{isHouseLand && houseTransactionType === 'For Rent' ? 'Monthly Rent (TTD)' : 'Price (TTD)'}
+                    <DollarSign className="w-4 h-4" />
+                    {isHouseLand && houseTransactionType === 'For Rent' ? 'Monthly Rent (TTD)' : 'Price (TTD)'}
+                    <span className="text-red-500">*</span>
                   </Label>
-                  <Input id="price" type="number" min="0" step="0.01" placeholder="0.00" value={formData.price} onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))} />
+                  <Input
+                    id="price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.price}
+                    onChange={(e) => { setFormData(prev => ({ ...prev, price: e.target.value })); clearError('price'); }}
+                    className={cn(errors.price && 'border-red-500 focus-visible:ring-red-500')}
+                  />
+                  <FieldError message={errors.price} />
                 </div>
               )}
 
@@ -438,32 +572,34 @@ export default function CreateListingPage() {
                     id="swapTerms"
                     placeholder="Describe what items you'd accept in trade..."
                     value={formData.swapTerms}
-                    onChange={(e) => setFormData(prev => ({ ...prev, swapTerms: e.target.value }))}
+                    onChange={(e) => { setFormData(prev => ({ ...prev, swapTerms: e.target.value })); clearError('swapTerms'); }}
                     rows={2}
                     minLength={3}
                     maxLength={500}
+                    className={cn(errors.swapTerms && 'border-red-500 focus-visible:ring-red-500')}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">{formData.swapTerms.length}/500 characters</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <FieldError message={errors.swapTerms} />
+                    <p className="text-xs text-muted-foreground ml-auto">{formData.swapTerms.length}/500</p>
+                  </div>
                 </div>
               )}
 
-              {/* Plan Selector — hidden for Free Items category and Give Away Free type */}
+              {/* Plan Selector */}
               {showPlanSelector && (
-                <div>
+                <div data-field="plan">
                   <Label className="flex items-center gap-2 mb-3">
-                    <Star className="w-4 h-4" />Listing Plan <span className="text-red-500 ml-0.5">*</span>
+                    <Star className="w-4 h-4" />Listing Plan <span className="text-red-500">*</span>
                   </Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                    {/* Featured Plan */}
+                    {/* Featured */}
                     <button
                       type="button"
-                      onClick={() => setSelectedPlan('FEATURED')}
+                      onClick={() => { setSelectedPlan('FEATURED'); clearError('plan'); }}
                       className={cn(
                         'text-left p-4 rounded-xl border-2 transition-all',
-                        selectedPlan === 'FEATURED'
-                          ? 'border-trini-gold bg-trini-gold/5'
-                          : 'border-muted hover:border-trini-gold/50'
+                        selectedPlan === 'FEATURED' ? 'border-trini-gold bg-trini-gold/5' : errors.plan ? 'border-red-400' : 'border-muted hover:border-trini-gold/50'
                       )}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -480,15 +616,13 @@ export default function CreateListingPage() {
                       <p className="text-xs text-muted-foreground mt-1">30 days • Priority placement • Featured badge</p>
                     </button>
 
-                    {/* Regular Plan */}
+                    {/* Regular */}
                     <button
                       type="button"
-                      onClick={() => setSelectedPlan('REGULAR')}
+                      onClick={() => { setSelectedPlan('REGULAR'); clearError('plan'); }}
                       className={cn(
                         'text-left p-4 rounded-xl border-2 transition-all',
-                        selectedPlan === 'REGULAR'
-                          ? 'border-caribbean-teal bg-caribbean-teal/5'
-                          : 'border-muted hover:border-caribbean-teal/50'
+                        selectedPlan === 'REGULAR' ? 'border-caribbean-teal bg-caribbean-teal/5' : errors.plan ? 'border-red-400' : 'border-muted hover:border-caribbean-teal/50'
                       )}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -507,13 +641,10 @@ export default function CreateListingPage() {
                       )}
                     </button>
                   </div>
-
-                  {!selectedPlan && (
-                    <p className="text-xs text-muted-foreground mt-2">Select a plan to continue. You will pay after your listing is created.</p>
-                  )}
+                  <FieldError message={errors.plan} />
                   {selectedPlan && (
                     <p className="text-xs text-green-600 mt-2 font-medium">
-                      ✓ {selectedPlan === 'FEATURED' ? 'Featured plan selected — $300 TTD / 30 days' : `Regular plan selected — $${regularPrice} TTD / 90 days`}
+                      ✓ {selectedPlan === 'FEATURED' ? 'Featured plan — $300 TTD / 30 days' : `Regular plan — $${regularPrice} TTD / 90 days`}
                     </p>
                   )}
                 </div>
