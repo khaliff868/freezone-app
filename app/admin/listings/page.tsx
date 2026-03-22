@@ -1,325 +1,631 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/api-client';
-import { toast } from 'sonner';
-import { CheckCircle, XCircle, Eye, ExternalLink, Image as ImageIcon, Trash2, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+
+type ListingStatus =
+  | 'PENDING_APPROVAL'
+  | 'PENDING_PAYMENT'
+  | 'ACTIVE'
+  | 'REJECTED'
+  | 'REMOVED'
+  | 'EXPIRED';
+
+type UserTier = 'FREE' | 'BASIC' | 'PRO' | 'BUSINESS' | string;
+
+type FeePayment = {
+  id: string;
+  status: string;
+  createdAt: string;
+};
+
+type ListingUser = {
+  id: string;
+  name: string | null;
+  email: string;
+  tier: UserTier;
+};
 
 type Listing = {
   id: string;
   title: string;
-  listingType: string;
-  status: string;
-  price: number | null;
+  description: string | null;
   category: string;
-  images: string[];
-  expiresAt: string | null;
-  publishedAt: string | null;
-  user: {
-    name: string;
-    email: string;
-  };
-  feePayments: { status: string }[];
+  listingType: string;
+  status: ListingStatus;
+  price?: number | null;
+  createdAt: string;
+  publishedAt?: string | null;
+  expiresAt?: string | null;
+  activatedAt?: string | null;
+  rejectedAt?: string | null;
+  rejectionReason?: string | null;
+  location?: string | null;
+  userId: string;
+  user: ListingUser;
+  feePayments: FeePayment[];
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  PENDING_APPROVAL: 'bg-yellow-100 text-yellow-800',
-  PENDING_PAYMENT: 'bg-orange-100 text-orange-800',
-  ACTIVE: 'bg-green-100 text-green-800',
-  EXPIRED: 'bg-gray-100 text-gray-800',
-  REJECTED: 'bg-red-100 text-red-800',
-  DRAFT: 'bg-gray-100 text-gray-600',
-  SOLD: 'bg-purple-100 text-purple-800',
-  SWAPPED: 'bg-blue-100 text-blue-800',
-  REMOVED: 'bg-red-100 text-red-800',
+type Pagination = {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
 };
+
+const STATUS_OPTIONS = [
+  'ALL',
+  'PENDING_APPROVAL',
+  'PENDING_PAYMENT',
+  'ACTIVE',
+  'REJECTED',
+  'REMOVED',
+  'EXPIRED',
+] as const;
+
+function formatDate(value?: string | null) {
+  if (!value) return '—';
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return value;
+  }
+}
+
+function getStatusBadgeClass(status: ListingStatus) {
+  switch (status) {
+    case 'PENDING_APPROVAL':
+      return 'bg-amber-100 text-amber-800 border border-amber-200';
+    case 'PENDING_PAYMENT':
+      return 'bg-orange-100 text-orange-800 border border-orange-200';
+    case 'ACTIVE':
+      return 'bg-green-100 text-green-800 border border-green-200';
+    case 'REJECTED':
+      return 'bg-red-100 text-red-800 border border-red-200';
+    case 'REMOVED':
+      return 'bg-slate-100 text-slate-800 border border-slate-200';
+    case 'EXPIRED':
+      return 'bg-gray-100 text-gray-700 border border-gray-200';
+    default:
+      return 'bg-slate-100 text-slate-800 border border-slate-200';
+  }
+}
 
 export default function AdminListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 1,
+  });
+
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>('all');
-  const [rejectModal, setRejectModal] = useState<{ open: boolean; listingId: string | null }>({ open: false, listingId: null });
-  const [rejectReason, setRejectReason] = useState('');
-  const [processing, setProcessing] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [reviewListing, setReviewListing] = useState<Listing | null>(null);
 
-  useEffect(() => {
-    loadListings();
-  }, [filter]);
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+    if (statusFilter !== 'ALL') params.set('status', statusFilter);
+    if (search.trim()) params.set('search', search.trim());
+    params.set('page', String(pagination.page));
+    params.set('limit', String(pagination.limit));
+    return params.toString();
+  }, [statusFilter, search, pagination.page, pagination.limit]);
 
-  const loadListings = async () => {
+  const fetchListings = async (pageOverride?: number) => {
     try {
       setLoading(true);
-      const params = filter !== 'all' ? `?status=${filter}` : '';
-      const data = await apiClient<{ listings: Listing[] }>(`/api/admin/listings${params}`);
+      setError(null);
+
+      const params = new URLSearchParams();
+      if (statusFilter !== 'ALL') params.set('status', statusFilter);
+      if (search.trim()) params.set('search', search.trim());
+      params.set('page', String(pageOverride ?? pagination.page));
+      params.set('limit', String(pagination.limit));
+
+      const res = await fetch(`/api/admin/listings?${params.toString()}`, {
+        cache: 'no-store',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to fetch listings');
+      }
+
       setListings(data.listings || []);
-    } catch (error: any) {
-      console.error('Error loading listings:', error);
-      toast.error('Failed to load listings');
+      setPagination(
+        data.pagination || {
+          page: 1,
+          limit: 20,
+          total: 0,
+          pages: 1,
+        }
+      );
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch listings');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApprove = async (listingId: string, isPendingPayment: boolean) => {
+  useEffect(() => {
+    fetchListings(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, search]);
+
+  const runAction = async (
+    listingId: string,
+    action: 'approve' | 'reject' | 'remove',
+    extraBody?: Record<string, unknown>
+  ) => {
     try {
-      setProcessing(listingId);
-      const action = isPendingPayment ? 'approve_payment' : 'approve';
-      await apiClient('/api/admin/listings', {
+      setActionLoadingId(listingId);
+      setError(null);
+
+      const res = await fetch('/api/admin/listings', {
         method: 'PUT',
-        body: JSON.stringify({ listingId, action }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          listingId,
+          action,
+          ...extraBody,
+        }),
       });
-      toast.success(isPendingPayment ? 'Payment verified and listing activated' : 'Listing approved');
-      loadListings();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to approve listing');
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Failed to ${action} listing`);
+      }
+
+      await fetchListings();
+      if (reviewListing?.id === listingId) {
+        setReviewListing(data.listing || null);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong');
     } finally {
-      setProcessing(null);
+      setActionLoadingId(null);
     }
   };
 
-  const handleReject = async () => {
-    if (!rejectModal.listingId || !rejectReason.trim()) {
-      toast.error('Please provide a rejection reason');
-      return;
-    }
-    try {
-      setProcessing(rejectModal.listingId);
-      await apiClient('/api/admin/listings', {
-        method: 'PUT',
-        body: JSON.stringify({
-          listingId: rejectModal.listingId,
-          action: 'reject',
-          reason: rejectReason,
-        }),
-      });
-      toast.success('Listing rejected');
-      setRejectModal({ open: false, listingId: null });
-      setRejectReason('');
-      loadListings();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to reject listing');
-    } finally {
-      setProcessing(null);
-    }
+  const handleApprove = async (listingId: string) => {
+    await runAction(listingId, 'approve');
+  };
+
+  const handleReject = async (listing: Listing) => {
+    const reason = window.prompt('Enter rejection reason:');
+    if (!reason || !reason.trim()) return;
+    await runAction(listing.id, 'reject', { reason: reason.trim() });
   };
 
   const handleRemove = async (listingId: string) => {
-    if (!confirm('Are you sure you want to remove this listing? This cannot be undone.')) return;
-    try {
-      setProcessing(listingId);
-      await apiClient('/api/admin/listings', {
-        method: 'PUT',
-        body: JSON.stringify({ listingId, action: 'remove' }),
-      });
-      toast.success('Listing removed');
-      loadListings();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to remove listing');
-    } finally {
-      setProcessing(null);
-    }
+    const confirmed = window.confirm(
+      'Are you sure you want to remove this listing?'
+    );
+    if (!confirmed) return;
+    await runAction(listingId, 'remove');
   };
 
-  const pendingCount = listings.filter(l => ['PENDING_APPROVAL', 'PENDING_PAYMENT'].includes(l.status)).length;
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    setSearch(searchInput);
+  };
+
+  const goToPage = async (page: number) => {
+    if (page < 1 || page > pagination.pages || page === pagination.page) return;
+    await fetchListings(page);
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <Link href="/admin" className="inline-flex items-center gap-1 text-gray-500 hover:text-gray-700 mb-4 text-sm">
-          <ArrowLeft className="w-4 h-4" />Back to Admin
-        </Link>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Listing Management</h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Review and approve listings.{' '}
-          {pendingCount > 0 && (
-            <span className="text-orange-600 font-semibold">{pendingCount} pending review</span>
-          )}
-        </p>
-      </div>
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+            Listing Management
+          </h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Review and approve listings. Payment verification stays in Verify
+            Payments.
+          </p>
+        </div>
 
-      {/* Filter Tabs */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        {[
-          { key: 'all', label: 'All' },
-          { key: 'PENDING_APPROVAL', label: 'Pending Approval' },
-          { key: 'PENDING_PAYMENT', label: 'Pending Payment' },
-          { key: 'ACTIVE', label: 'Active' },
-          { key: 'EXPIRED', label: 'Expired' },
-          { key: 'REJECTED', label: 'Rejected' },
-        ].map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setFilter(key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === key
-                ? 'bg-trini-red text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <form
+              onSubmit={handleSearchSubmit}
+              className="flex w-full flex-col gap-3 md:max-w-xl md:flex-row"
+            >
+              <div className="flex-1">
+                <label
+                  htmlFor="search"
+                  className="mb-1 block text-sm font-medium text-slate-700"
+                >
+                  Search listings
+                </label>
+                <input
+                  id="search"
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Search by title or description"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-0 transition focus:border-slate-400"
+                />
+              </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Listing</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {loading ? (
+              <button
+                type="submit"
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+              >
+                Search
+              </button>
+            </form>
+
+            <div className="w-full md:w-64">
+              <label
+                htmlFor="status"
+                className="mb-1 block text-sm font-medium text-slate-700"
+              >
+                Status
+              </label>
+              <select
+                id="status"
+                value={statusFilter}
+                onChange={(e) => {
+                  setPagination((prev) => ({ ...prev, page: 1 }));
+                  setStatusFilter(e.target.value);
+                }}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-400"
+              >
+                {STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>
+                    {status === 'ALL'
+                      ? 'All Statuses'
+                      : status.replaceAll('_', ' ')}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-100">
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-500">Loading listings...</td>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Listing
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Seller
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Category
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Created
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Actions
+                  </th>
                 </tr>
-              ) : listings.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-500">No listings found</td>
-                </tr>
-              ) : (
-                listings.map((listing) => {
-                  const isPendingApproval = listing.status === 'PENDING_APPROVAL';
-                  const isPendingPayment = listing.status === 'PENDING_PAYMENT';
-                  const needsApproval = isPendingApproval || isPendingPayment;
-                  const isRemoved = listing.status === 'REJECTED' || listing.status === 'REMOVED';
+              </thead>
 
-                  return (
-                    <tr
-                      key={listing.id}
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${needsApproval ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}`}
+              <tbody className="divide-y divide-slate-200 bg-white">
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-6 py-10 text-center text-sm text-slate-500"
                     >
-                      {/* Listing */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-start gap-3">
-                          {listing.images?.[0] ? (
-                            <img src={listing.images[0]} alt="" className="w-12 h-12 rounded object-cover flex-shrink-0" />
-                          ) : (
-                            <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
-                              <ImageIcon className="w-6 h-6 text-gray-400" />
+                      Loading listings...
+                    </td>
+                  </tr>
+                ) : listings.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-6 py-10 text-center text-sm text-slate-500"
+                    >
+                      No listings found.
+                    </td>
+                  </tr>
+                ) : (
+                  listings.map((listing) => {
+                    const isBusy = actionLoadingId === listing.id;
+
+                    return (
+                      <tr key={listing.id} className="align-top">
+                        <td className="px-6 py-4">
+                          <div className="max-w-xs">
+                            <div className="font-semibold text-slate-900">
+                              {listing.title}
                             </div>
-                          )}
-                          <div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">{listing.title}</div>
-                            <div className="text-xs text-gray-500">{listing.category} • {listing.listingType}</div>
-                            <div className="text-xs text-gray-500">{listing.price ? `$${listing.price} TTD` : 'No price'}</div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              {listing.listingType}
+                              {listing.location ? ` • ${listing.location}` : ''}
+                            </div>
+                            {listing.description && (
+                              <p className="mt-2 line-clamp-2 text-sm text-slate-600">
+                                {listing.description}
+                              </p>
+                            )}
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* User */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white">{listing.user.name}</div>
-                        <div className="text-xs text-gray-500">{listing.user.email}</div>
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${STATUS_COLORS[listing.status] || 'bg-gray-100 text-gray-800'}`}>
-                          {listing.status.replace(/_/g, ' ')}
-                        </span>
-                        {listing.expiresAt && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            Expires: {new Date(listing.expiresAt).toLocaleDateString()}
+                        <td className="px-6 py-4 text-sm text-slate-700">
+                          <div className="font-medium text-slate-900">
+                            {listing.user?.name || 'Unnamed User'}
                           </div>
-                        )}
-                      </td>
+                          <div className="text-xs text-slate-500">
+                            {listing.user?.email}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            Tier: {listing.user?.tier || '—'}
+                          </div>
+                        </td>
 
-                      {/* Actions */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {/* Review — always visible */}
-                          <a
-                            href={`/dashboard/listings/${listing.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition"
+                        <td className="px-6 py-4 text-sm text-slate-700">
+                          {listing.category}
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusBadgeClass(
+                              listing.status
+                            )}`}
                           >
-                            <ExternalLink className="w-3 h-3" />
-                            Review
-                          </a>
+                            {listing.status.replaceAll('_', ' ')}
+                          </span>
+                        </td>
 
-                          {/* Approve — only for pending */}
-                          {needsApproval && (
+                        <td className="px-6 py-4 text-sm text-slate-600">
+                          {formatDate(listing.createdAt)}
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-2">
                             <button
-                              onClick={() => handleApprove(listing.id, isPendingPayment)}
-                              disabled={processing === listing.id}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                              onClick={() => setReviewListing(listing)}
+                              className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
                             >
-                              <CheckCircle className="w-3 h-3" />
-                              {isPendingPayment ? 'Approve Payment' : 'Approve'}
+                              Review
                             </button>
-                          )}
 
-                          {/* Reject — only for pending */}
-                          {needsApproval && (
-                            <button
-                              onClick={() => setRejectModal({ open: true, listingId: listing.id })}
-                              disabled={processing === listing.id}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 disabled:opacity-50 transition"
-                            >
-                              <XCircle className="w-3 h-3" />
-                              Reject
-                            </button>
-                          )}
+                            {listing.status === 'PENDING_APPROVAL' && (
+                              <>
+                                <button
+                                  onClick={() => handleApprove(listing.id)}
+                                  disabled={isBusy}
+                                  className="inline-flex items-center rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {isBusy ? 'Working...' : 'Approve'}
+                                </button>
 
-                          {/* Remove — for non-rejected listings */}
-                          {!isRemoved && (
+                                <button
+                                  onClick={() => handleReject(listing)}
+                                  disabled={isBusy}
+                                  className="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            )}
+
                             <button
                               onClick={() => handleRemove(listing.id)}
-                              disabled={processing === listing.id}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-700 text-white text-xs font-medium rounded hover:bg-gray-900 disabled:opacity-50 transition"
+                              disabled={isBusy}
+                              className="inline-flex items-center rounded-md bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              <Trash2 className="w-3 h-3" />
                               Remove
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
 
-      {/* Reject Modal */}
-      {rejectModal.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Reject Listing</h3>
-            <textarea
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Enter rejection reason..."
-              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              rows={4}
-            />
-            <div className="flex justify-end gap-3 mt-4">
+          <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row">
+            <div className="text-sm text-slate-600">
+              Showing page {pagination.page} of {pagination.pages} •{' '}
+              {pagination.total} total listings
+            </div>
+
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => { setRejectModal({ open: false, listingId: null }); setRejectReason(''); }}
-                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800"
+                onClick={() => goToPage(pagination.page - 1)}
+                disabled={pagination.page <= 1 || loading}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Cancel
+                Previous
               </button>
               <button
-                onClick={handleReject}
-                disabled={!rejectReason.trim() || processing === rejectModal.listingId}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                onClick={() => goToPage(pagination.page + 1)}
+                disabled={pagination.page >= pagination.pages || loading}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Reject Listing
+                Next
               </button>
             </div>
           </div>
         </div>
-      )}
+
+        {reviewListing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">
+                    Review Listing
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Review listing details before taking action.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setReviewListing(null)}
+                  className="rounded-md px-3 py-2 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="space-y-6 px-6 py-5">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    {reviewListing.title}
+                  </h3>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusBadgeClass(
+                        reviewListing.status
+                      )}`}
+                    >
+                      {reviewListing.status.replaceAll('_', ' ')}
+                    </span>
+                    <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+                      {reviewListing.category}
+                    </span>
+                    <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+                      {reviewListing.listingType}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Seller
+                    </div>
+                    <div className="mt-2 text-sm text-slate-900">
+                      {reviewListing.user?.name || 'Unnamed User'}
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {reviewListing.user?.email}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      Tier: {reviewListing.user?.tier || '—'}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Dates
+                    </div>
+                    <div className="mt-2 space-y-1 text-sm text-slate-700">
+                      <div>
+                        <span className="font-medium text-slate-900">
+                          Created:
+                        </span>{' '}
+                        {formatDate(reviewListing.createdAt)}
+                      </div>
+                      <div>
+                        <span className="font-medium text-slate-900">
+                          Published:
+                        </span>{' '}
+                        {formatDate(reviewListing.publishedAt)}
+                      </div>
+                      <div>
+                        <span className="font-medium text-slate-900">
+                          Expires:
+                        </span>{' '}
+                        {formatDate(reviewListing.expiresAt)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Description
+                  </div>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                    {reviewListing.description || 'No description provided.'}
+                  </p>
+                </div>
+
+                {reviewListing.rejectionReason && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-red-700">
+                      Rejection Reason
+                    </div>
+                    <p className="mt-2 text-sm text-red-800">
+                      {reviewListing.rejectionReason}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 px-6 py-4">
+                {reviewListing.status === 'PENDING_APPROVAL' && (
+                  <>
+                    <button
+                      onClick={() => handleReject(reviewListing)}
+                      disabled={actionLoadingId === reviewListing.id}
+                      className="inline-flex items-center rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Reject
+                    </button>
+
+                    <button
+                      onClick={() => handleApprove(reviewListing.id)}
+                      disabled={actionLoadingId === reviewListing.id}
+                      className="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {actionLoadingId === reviewListing.id
+                        ? 'Working...'
+                        : 'Approve'}
+                    </button>
+                  </>
+                )}
+
+                <button
+                  onClick={() => handleRemove(reviewListing.id)}
+                  disabled={actionLoadingId === reviewListing.id}
+                  className="inline-flex items-center rounded-md bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Remove
+                </button>
+
+                <button
+                  onClick={() => setReviewListing(null)}
+                  className="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+          Current workflow: approved paid listings move to{' '}
+          <span className="font-semibold text-slate-900">PENDING PAYMENT</span>{' '}
+          for the Verify Payments tab. Free listings go live immediately.
+        </div>
+      </div>
     </div>
   );
 }
