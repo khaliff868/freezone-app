@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 
 const CATEGORIES = [
   'Swaps', 'Free Items', 'Beauty & Personal Care', 'Electronics', 'Vehicles',
-  'Auto Parts & Accessories', 'Real Estate', 'Construction Materials',
+  'Auto Parts & Accessories', 'House/Land', 'Construction Materials',
   'Home & Garden', 'Furniture', 'Appliances', 'Fashion', 'Sports & Outdoors',
   'Books & Education', 'Kids & Baby', 'Services', 'Food & Catering',
   'Business & Industrial', 'Events & Tickets', 'Pets & Livestock',
@@ -94,7 +94,6 @@ type Listing = {
   user: { id: string; name: string; email: string; tier: string; };
 };
 
-// Parse stored category "Vehicles - Cars - Toyota" → { type, make }
 function parseVehicleCategory(cat: string): { type: string; make: string } {
   if (!cat.startsWith('Vehicles - ')) return { type: '', make: '' };
   const parts = cat.split(' - ');
@@ -143,8 +142,6 @@ export default function EditListingPage() {
       }
 
       setListing(listingData);
-
-      // Parse vehicle subcategory if applicable
       const { type, make } = parseVehicleCategory(listingData.category);
       setVehicleType(type);
       setVehicleMake(make);
@@ -152,7 +149,6 @@ export default function EditListingPage() {
       setFormData({
         title: listingData.title || '',
         description: listingData.description || '',
-        // Show "Vehicles" in the category dropdown regardless of subcategory
         category: listingData.category.startsWith('Vehicles') ? 'Vehicles' : listingData.category,
         condition: listingData.condition || '',
         listingType: listingData.listingType || 'SELL',
@@ -171,10 +167,8 @@ export default function EditListingPage() {
     }
   };
 
-  // Reset make when type changes
   useEffect(() => { setVehicleMake(''); }, [vehicleType]);
 
-  // Reset vehicle selections when category changes away from Vehicles
   useEffect(() => {
     if (formData.category !== 'Vehicles') { setVehicleType(''); setVehicleMake(''); }
   }, [formData.category]);
@@ -418,7 +412,7 @@ export default function EditListingPage() {
                 </div>
               </div>
 
-              {/* Vehicles — 2-step: type then make */}
+              {/* Vehicles */}
               {isVehicles && (
                 <div className="space-y-4 p-4 bg-trini-red/5 border border-trini-red/20 rounded-xl">
                   <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">🚗 Vehicle Details</p>
