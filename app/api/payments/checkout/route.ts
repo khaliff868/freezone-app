@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
-import { LISTING_FEE_AMOUNT } from '@/lib/constants';
 
-// Note: Tier system removed - single fee for all users
-
-// Bank details for bank deposit
 const BANK_DETAILS = {
   bankName: 'First Citizens Bank',
   accountName: 'Freezone Swap or Sell Ltd',
@@ -15,8 +11,25 @@ const BANK_DETAILS = {
   instructions: 'Include your listing reference in the payment description',
 };
 
-// Payment method type
 type PaymentMethodType = 'PAYPAL' | 'ONLINE_BANK' | 'BANK_DEPOSIT';
+type ListingPlan = 'FEATURED' | 'REGULAR';
+
+const PREMIUM_CATEGORIES = ['House/Land', 'Business & Industrial', 'Vehicles'];
+
+function isPremiumCategory(category: string): boolean {
+  return PREMIUM_CATEGORIES.some(
+    p => category === p || category.startsWith(`${p} - `) || category.startsWith(`${p} -`)
+  );
+}
+
+function getFeeAmount(plan: ListingPlan, category: string): number {
+  if (plan === 'FEATURED') return 300;
+  return isPremiumCategory(category) ? 100 : 25;
+}
+
+function getDurationDays(plan: ListingPlan): number {
+  return plan === 'FEATURED' ? 30 : 90;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +39,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { listingId, method } = body as { listingId: string; method: PaymentMethodType };
+    const { listingId, method, plan = 'REGULAR' } = body as {
+      listingId: string;
+      method: PaymentMethodType;
+      plan: ListingPlan;
+    };
 
     if (!listingId) {
       return NextResponse.json({ error: 'Listing ID is required' }, { status: 400 });
@@ -36,13 +53,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Valid payment method is required' }, { status: 400 });
     }
 
-    // Verify listing belongs to user and needs payment
+    if (!['FEATURED', 'REGULAR'].includes(plan)) {
+      return NextResponse.json({ error: 'Valid plan is required' }, { status: 400 });
+    }
+
     const listing = await prisma.listing.findFirst({
       where: {
         id: listingId,
         userId: session.user.id,
-        listingType: { in: ['SELL', 'BOTH'] },
-        status: { in: ['DRAFT', 'PENDING_PAYMENT'] },
+        status: { in: ['DRAFT', 'PENDING_PAYMENT', 'ACTIVE', 'EXPIRED'] },
       },
     });
 
@@ -53,13 +72,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use the standard listing fee (same for all users)
-    const feeAmount = LISTING_FEE_AMOUNT;
+    const feeAmount = getFeeAmount(plan, listing.category);
+    const durationDays = getDurationDays(plan);
+    const isFeatured = plan === 'FEATURED';
 
-    // Generate unique reference for bank deposits
     const reference = `TSS-${Date.now().toString(36).toUpperCase()}-${listingId.slice(-4).toUpperCase()}`;
 
-    // Create payment record
     const feePayment = await prisma.feePayment.create({
       data: {
         listingId,
@@ -69,58 +87,53 @@ export async function POST(request: NextRequest) {
         method,
         status: method === 'PAYPAL' ? 'CREATED' : 'PENDING',
         reference,
+        ...(('adminNotes' in {}) ? {} : {}),
       },
     });
 
-    // Update listing status to PENDING_PAYMENT
     await prisma.listing.update({
       where: { id: listingId },
-      data: { status: 'PENDING_PAYMENT' },
+      data: {
+        status: 'PENDING_PAYMENT',
+        featured: isFeatured ? true : listing.featured,
+      },
     });
 
+    const baseResponse = {
+      paymentId: feePayment.id,
+      method,
+      amount: feeAmount,
+      currency: 'TTD',
+      reference,
+      plan,
+      durationDays,
+      listingTitle: listing.title,
+    };
+
     if (method === 'PAYPAL') {
-      // For PayPal, we'll use the client-side SDK
-      // Return info for client to create PayPal order
-      const usdAmount = (feeAmount / 6.8).toFixed(2); // Convert TTD to USD
+      const usdAmount = (feeAmount / 6.8).toFixed(2);
+      return NextResponse.json({ ...baseResponse, usdAmount });
+    }
+
+    if (method === 'ONLINE_BANK') {
       return NextResponse.json({
-        paymentId: feePayment.id,
-        method: 'PAYPAL',
-        amount: feeAmount,
-        currency: 'TTD',
-        usdAmount,
-        listingTitle: listing.title,
-        reference,
-      });
-    } else if (method === 'ONLINE_BANK') {
-      // Online bank transfer info
-      return NextResponse.json({
-        paymentId: feePayment.id,
-        method: 'ONLINE_BANK',
-        amount: feeAmount,
-        currency: 'TTD',
-        reference,
+        ...baseResponse,
         bankDetails: BANK_DETAILS,
-        instructions: 'Transfer the exact amount to the account below. Use the reference number in your payment description. Your listing will be activated once we verify the payment (usually within 24 hours).',
-      });
-    } else {
-      // Bank deposit info
-      return NextResponse.json({
-        paymentId: feePayment.id,
-        method: 'BANK_DEPOSIT',
-        amount: feeAmount,
-        currency: 'TTD',
-        reference,
-        bankDetails: BANK_DETAILS,
-        instructions: 'Visit any First Citizens Bank branch and deposit the exact amount. Write the reference number on your deposit slip. Upload your receipt after making the deposit. Your listing will be activated once we verify the payment (usually within 24-48 hours).',
+        instructions: `Transfer $${feeAmount} TTD to the account below. Use the reference number in your payment description. Your listing will be activated once we verify the payment (usually within 24 hours).`,
       });
     }
+
+    return NextResponse.json({
+      ...baseResponse,
+      bankDetails: BANK_DETAILS,
+      instructions: `Visit any First Citizens Bank branch and deposit $${feeAmount} TTD. Write the reference number on your deposit slip. Upload your receipt after making the deposit. Your listing will be activated within 24-48 hours.`,
+    });
   } catch (error) {
     console.error('Error creating payment:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// GET: Get payment status and details
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -136,18 +149,11 @@ export async function GET(request: NextRequest) {
     }
 
     const payment = await prisma.feePayment.findFirst({
-      where: {
-        listingId,
-        userId: session.user.id,
-      },
+      where: { listingId, userId: session.user.id },
       orderBy: { createdAt: 'desc' },
     });
 
-    if (!payment) {
-      return NextResponse.json({ payment: null });
-    }
-
-    return NextResponse.json({ payment });
+    return NextResponse.json({ payment: payment || null });
   } catch (error) {
     console.error('Error fetching payment:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
