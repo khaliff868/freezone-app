@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 
 const CATEGORIES = [
   'Swaps', 'Free Items', 'Beauty & Personal Care', 'Electronics', 'Vehicles',
-  'Auto Parts & Accessories', 'House & Land', 'Construction Materials',
+  'Auto Parts & Accessories', 'House/Land', 'Construction Materials',
   'Home & Garden', 'Furniture', 'Appliances', 'Fashion', 'Sports & Outdoors',
   'Books & Education', 'Kids & Baby', 'Services', 'Food & Catering',
   'Business & Industrial', 'Events & Tickets', 'Pets & Livestock',
@@ -104,15 +104,15 @@ export default function CreateListingPage() {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const isHouseLand = formData.category === 'House & Land';
+  const isHouseLand = formData.category === 'House/Land';
   const isVehicles = formData.category === 'Vehicles';
   const availableMakes = vehicleType ? VEHICLE_HIERARCHY[vehicleType] || [] : [];
 
   const getFinalCategory = () => {
     if (isHouseLand) {
-      if (houseLandSubcategory === 'House' && houseTransactionType) return `House & Land - House ${houseTransactionType}`;
-      if (houseLandSubcategory === 'Land') return 'House & Land - Land';
-      return 'House & Land';
+      if (houseLandSubcategory === 'House' && houseTransactionType) return `House/Land - House ${houseTransactionType}`;
+      if (houseLandSubcategory === 'Land') return 'House/Land - Land';
+      return 'House/Land';
     }
     if (isVehicles) {
       if (vehicleType && vehicleMake) return `Vehicles - ${vehicleType} - ${vehicleMake}`;
@@ -131,7 +131,6 @@ export default function CreateListingPage() {
     if (houseLandSubcategory !== 'House') setHouseTransactionType('');
   }, [houseLandSubcategory]);
 
-  // Reset make when type changes
   useEffect(() => { setVehicleMake(''); }, [vehicleType]);
 
   useEffect(() => {
@@ -304,10 +303,10 @@ export default function CreateListingPage() {
                 </div>
               </div>
 
-              {/* House & Land */}
+              {/* House/Land */}
               {isHouseLand && (
                 <div className="space-y-4 p-4 bg-trini-gold/10 border border-trini-gold/20 rounded-xl">
-                  <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">🏠 House & Land Details</p>
+                  <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">🏠 House/Land Details</p>
                   <div>
                     <Label className="text-sm mb-2 block">Property Type</Label>
                     <Select value={houseLandSubcategory} onValueChange={setHouseLandSubcategory}>
@@ -324,13 +323,13 @@ export default function CreateListingPage() {
                       </Select>
                     </div>
                   )}
-                  {getFinalCategory() !== 'House & Land' && (
+                  {getFinalCategory() !== 'House/Land' && (
                     <p className="text-xs text-gray-500">Will be saved as: <span className="font-semibold text-gray-700">{getFinalCategory()}</span></p>
                   )}
                 </div>
               )}
 
-              {/* Vehicles — 2-step: type then make */}
+              {/* Vehicles */}
               {isVehicles && (
                 <div className="space-y-4 p-4 bg-trini-red/5 border border-trini-red/20 rounded-xl">
                   <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">🚗 Vehicle Details</p>
