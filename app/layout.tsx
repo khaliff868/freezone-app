@@ -4,6 +4,7 @@ import './globals.css';
 import { Providers } from '@/components/providers';
 import { Navbar } from '@/components/shared/navbar';
 import QuickPostFAB from '@/components/shared/quick-post-fab';
+import { Toaster } from 'sonner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -52,6 +53,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
           <QuickPostFAB />
         </Providers>
+
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );
