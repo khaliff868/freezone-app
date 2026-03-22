@@ -25,9 +25,6 @@ export const TRIAL_DURATION_DAYS = 7; // 7-day free trial for new users
 // Category that requires only approval (no payment)
 export const FREE_CATEGORY = 'Free Items';
 
-// Note: Tier system has been removed. All users have equal privileges.
-// Only role-based access (USER vs ADMIN) is now used.
-
 // Categories (exact order - do not modify)
 export const CATEGORIES = [
   'Swaps',
@@ -36,7 +33,7 @@ export const CATEGORIES = [
   'Electronics',
   'Vehicles',
   'Auto Parts & Accessories',
-  'Real Estate',
+  'House/Land', // ✅ UPDATED HERE
   'Construction Materials',
   'Home & Garden',
   'Furniture',
@@ -142,7 +139,7 @@ export const FEATURED_LISTING_RENEWAL_PRICE = 300;
 export const FEATURED_LISTING_RENEWAL_DAYS = 7;
 export const FEATURED_LISTING_MAX_POOL = 12;
 export const FEATURED_LISTING_VISIBLE_COUNT = 6;
-export const FEATURED_LISTING_ROTATION_INTERVAL = 5 * 60 * 1000; // 5 minutes in ms
+export const FEATURED_LISTING_ROTATION_INTERVAL = 5 * 60 * 1000;
 
 // File Upload Limits
 export const MAX_IMAGES_PER_LISTING = 8;
@@ -155,7 +152,6 @@ export const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '';
 export const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
 export const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID || '';
 
-// Determine PayPal API base URL based on environment
-export const PAYPAL_API_BASE = process.env.PAYPAL_MODE === 'live' 
+export const PAYPAL_API_BASE = process.env.PAYPAL_MODE === 'live'
   ? 'https://api-m.paypal.com'
   : 'https://api-m.sandbox.paypal.com';
