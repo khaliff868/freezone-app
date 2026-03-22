@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { Users } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 
@@ -33,7 +32,11 @@ export default function AdminUsersPage() {
     try {
       setLoading(true);
       const data = await apiClient<{ users: User[] }>('/api/admin/users');
-      setUsers(data.users || []);
+      const fetchedUsers = data.users || [];
+      fetchedUsers.forEach(u => {
+        console.log(`[AdminUsers] id=${u.id} name=${u.name} banned=${u.banned} role=${u.role}`);
+      });
+      setUsers(fetchedUsers);
     } catch (error: any) {
       console.error('Error loading users:', error);
       toast.error('Failed to load users');
@@ -58,18 +61,25 @@ export default function AdminUsersPage() {
         body: JSON.stringify({ userId, action }),
       });
 
+      const responseData = await res.json().catch(() => ({}));
+      console.log('[AdminUsers] ban-toggle response:', responseData);
+
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        toast.error(errorData.error || 'Failed to update user status');
+        toast.error(responseData.error || 'Failed to update user status');
         return;
       }
 
-      setUsers(prev =>
-        prev.map(u => u.id === userId ? { ...u, banned: action === 'ban' } : u)
-      );
+      setUsers(prev => {
+        const updated = prev.map(u =>
+          u.id === userId ? { ...u, banned: action === 'ban' } : u
+        );
+        console.log('[AdminUsers] updated user state:', updated.find(u => u.id === userId));
+        return updated;
+      });
+
       toast.success(action === 'ban' ? 'User banned successfully' : 'User unbanned successfully');
     } catch (error) {
-      console.error('Ban/unban request failed:', error);
+      console.error('[AdminUsers] Ban/unban request failed:', error);
       toast.error('Failed to update user status');
     } finally {
       setTogglingId(null);
@@ -116,6 +126,8 @@ export default function AdminUsersPage() {
                 users.map((user) => {
                   const isSelf = session?.user?.id === user.id;
                   const isAdmin = user.role === 'ADMIN';
+                  const isBanned = user.banned === true;
+
                   return (
                     <tr key={user.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -133,7 +145,7 @@ export default function AdminUsersPage() {
                         <span className="text-sm text-gray-900">{user._count.listings}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {user.banned ? (
+                        {isBanned ? (
                           <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
                             Banned
                           </span>
@@ -148,15 +160,15 @@ export default function AdminUsersPage() {
                           <span className="text-xs text-gray-400">—</span>
                         ) : (
                           <button
-                            onClick={() => handleToggleBan(user.id, user.banned ? 'unban' : 'ban')}
+                            onClick={() => handleToggleBan(user.id, isBanned ? 'unban' : 'ban')}
                             disabled={togglingId === user.id}
                             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                              user.banned
+                              isBanned
                                 ? 'bg-green-100 text-green-700 hover:bg-green-200'
                                 : 'bg-red-100 text-red-700 hover:bg-red-200'
                             }`}
                           >
-                            {togglingId === user.id ? '...' : user.banned ? 'Unban' : 'Ban'}
+                            {togglingId === user.id ? '...' : isBanned ? 'Unban' : 'Ban'}
                           </button>
                         )}
                       </td>
