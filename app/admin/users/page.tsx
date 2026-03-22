@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 
@@ -89,6 +91,9 @@ export default function AdminUsersPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
+        <Link href="/admin" className="inline-flex items-center gap-1 text-gray-500 hover:text-gray-700 mb-4 text-sm">
+          <ArrowLeft className="w-4 h-4" />Back to Admin
+        </Link>
         <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
         <p className="mt-2 text-gray-600">Manage all platform users</p>
       </div>
