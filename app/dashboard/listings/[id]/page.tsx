@@ -694,7 +694,7 @@ export default function ListingDetailPage() {
                   </div>
                 )}
 
-                {(listing.status === 'ACTIVE' || listing.status === 'EXPIRED') && listing.category !== 'Free Items' && (
+                {(listing.status === 'ACTIVE' || listing.status === 'EXPIRED' || isBanner) && listing.category !== 'Free Items' && (
                   <div>
                     <button onClick={handlePayFee} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-trini-gold to-tropical-orange text-white font-semibold rounded-xl hover:scale-105 transition-transform">
                       <RefreshCcw className="w-5 h-5" />Renew Listing
