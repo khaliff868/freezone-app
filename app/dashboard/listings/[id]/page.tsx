@@ -709,7 +709,7 @@ export default function ListingDetailPage() {
                   </button>
                 )}
 
-                {!isSold && (
+                {(!isSold || isBanner) && (
                   <button onClick={() => router.push(`/dashboard/listings/${listingId}/edit`)} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-caribbean-teal/10 text-caribbean-teal font-semibold rounded-xl hover:bg-caribbean-teal/20 transition">
                     <Edit className="w-5 h-5" />Edit Listing
                   </button>
