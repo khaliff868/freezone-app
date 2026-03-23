@@ -467,6 +467,11 @@ export default function ListingDetailPage() {
 
   const isOwner = session?.user?.id === listing?.user?.id;
   const isSold = listing?.status === 'SOLD';
+
+// Detect banner ads
+  const isBanner =
+    listing?.category === 'Banner Ads' ||
+    listing?.listingType === 'BANNER';
   const regularPrice = listing ? getRegularPrice(listing.category) : 25;
 
   if (loading) {
@@ -714,7 +719,7 @@ export default function ListingDetailPage() {
                   <Trash2 className="w-5 h-5" />Delete Listing
                 </button>
 
-                {!isSold && (listing.status === 'ACTIVE' || listing.status === 'PENDING_PAYMENT' || listing.status === 'PENDING_APPROVAL') && (
+                {!isSold && !isBanner && (listing.status === 'ACTIVE' || listing.status === 'PENDING_PAYMENT' || listing.status === 'PENDING_APPROVAL') && (
                   <button onClick={handleMarkAsSold} disabled={markingAsSold} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-caribbean-ocean/10 text-caribbean-ocean font-semibold rounded-xl hover:bg-caribbean-ocean/20 transition disabled:opacity-50">
                     {markingAsSold ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingBag className="w-5 h-5" />}
                     {markingAsSold ? 'Marking...' : 'Mark as Sold'}
