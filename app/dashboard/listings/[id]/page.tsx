@@ -653,7 +653,7 @@ export default function ListingDetailPage() {
                   </div>
                 )}
 
-                {listing.status === 'PENDING_PAYMENT' && (
+                {(listing.status === 'PENDING_PAYMENT' || isBanner) && (
                   <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-800 mb-3">
                     <AlertCircle className="w-4 h-4 inline mr-2" />Payment required to publish this listing.
                     {!paymentExpired && timeRemaining && <p className="text-sm text-gray-600 mt-2">Payment request expires in: {timeRemaining}</p>}
