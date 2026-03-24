@@ -322,7 +322,7 @@ function BrowsePageInner() {
         <h4 className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1 group-hover:text-trini-red transition">{listing.title}</h4>
         <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{listing.location}</p>
         <div className="flex items-center justify-between mt-1">
-          {listing.price ? <span className="text-sm font-bold text-trini-red">${listing.price}</span> : <span className="text-xs font-semibold text-tropical-purple">Swap</span>}
+          {listing.price ? <span className="text-sm font-bold text-trini-red">${Math.round(listing.price).toLocaleString('en-US')} TTD</span> : <span className="text-xs font-semibold text-tropical-purple">Swap</span>}
           {showSwapButton && (listing.listingType === 'SWAP' || listing.listingType === 'BOTH') && <span className="text-xs px-2 py-0.5 bg-tropical-purple/10 text-tropical-purple rounded-full">Swap</span>}
         </div>
       </div>
@@ -524,7 +524,7 @@ function BrowsePageInner() {
                           <div className="text-gray-800 dark:text-white font-medium truncate">{suggestion.title}</div>
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-500 dark:text-gray-400">{suggestion.category}</span>
-                            {suggestion.price !== null && <span className="text-trini-red font-semibold">${suggestion.price.toLocaleString()}</span>}
+                            {suggestion.price !== null && <span className="text-trini-red font-semibold">${Math.round(suggestion.price).toLocaleString('en-US')} TTD</span>}
                           </div>
                         </button>
                       ))
@@ -642,7 +642,7 @@ function BrowsePageInner() {
                         <h3 className="font-semibold text-gray-900 dark:text-white mb-1 line-clamp-1 group-hover:text-caribbean-teal transition-colors">{listing.title}</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">{listing.description}</p>
                         {listing.price ? (
-                          <p className="text-lg font-bold text-trini-red mb-2">${listing.price.toLocaleString()} TTD</p>
+                          <p className="text-lg font-bold text-trini-red mb-2">${Math.round(listing.price).toLocaleString('en-US')} TTD</p>
                         ) : (
                           <p className="text-lg font-semibold text-tropical-purple mb-2">Swap Only</p>
                         )}
