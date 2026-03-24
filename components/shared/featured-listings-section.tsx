@@ -24,7 +24,6 @@ type ListingWithUser = {
   user: { id: string; name: string; verified: boolean };
 };
 
-// Helper to check if listing is free
 const isFreeListing = (listing: ListingWithUser) => {
   return listing.listingType === 'FREE' || listing.category === 'Free Items' || (listing.price === 0 && listing.listingType !== 'SWAP');
 };
@@ -39,7 +38,6 @@ const getTypeColor = (type: string) => {
   }
 };
 
-// Listing Card Component
 const ListingCard = ({ listing }: { listing: ListingWithUser }) => (
   <Link
     href={`/dashboard/listings/${listing.id}`}
@@ -67,7 +65,10 @@ const ListingCard = ({ listing }: { listing: ListingWithUser }) => (
         {isFreeListing(listing) ? (
           <span className="inline-block px-3 py-1 bg-caribbean-green text-white text-lg font-bold rounded-full">FREE</span>
         ) : listing.price ? (
-          <div><span className="text-xl font-bold text-trini-red">${listing.price}</span><span className="text-sm text-gray-500 dark:text-gray-400 ml-1">TTD</span></div>
+          <div>
+            <span className="text-xl font-bold text-trini-red">${Math.round(listing.price).toLocaleString('en-US')}</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">TTD</span>
+          </div>
         ) : (
           <span className="text-lg font-semibold text-tropical-purple">Swap Only</span>
         )}
@@ -88,7 +89,6 @@ export default function FeaturedListingsSection({ initialListings = [] }: Featur
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
   const [loading, setLoading] = useState(!initialListings.length);
 
-  // Fetch featured listings from API
   const fetchFeaturedListings = useCallback(async () => {
     try {
       const res = await fetch('/api/featured-listings');
@@ -105,47 +105,33 @@ export default function FeaturedListingsSection({ initialListings = [] }: Featur
     }
   }, []);
 
-  // Initial fetch
   useEffect(() => {
     if (!initialListings.length) {
       fetchFeaturedListings();
     }
   }, [fetchFeaturedListings, initialListings.length]);
 
-  // Rotation logic: Every 5 minutes, switch between sets of 6
   useEffect(() => {
-    if (allFeaturedListings.length <= FEATURED_LISTING_VISIBLE_COUNT) {
-      // No need to rotate if we have 6 or fewer listings
-      return;
-    }
-
+    if (allFeaturedListings.length <= FEATURED_LISTING_VISIBLE_COUNT) return;
     const rotationInterval = setInterval(() => {
       setCurrentSetIndex((prev) => {
         const totalSets = Math.ceil(allFeaturedListings.length / FEATURED_LISTING_VISIBLE_COUNT);
         return (prev + 1) % totalSets;
       });
     }, FEATURED_LISTING_ROTATION_INTERVAL);
-
     return () => clearInterval(rotationInterval);
   }, [allFeaturedListings.length]);
 
-  // Get current visible listings (6 at a time)
   const getVisibleListings = () => {
     if (allFeaturedListings.length === 0) return [];
-    
     const startIndex = currentSetIndex * FEATURED_LISTING_VISIBLE_COUNT;
     const endIndex = startIndex + FEATURED_LISTING_VISIBLE_COUNT;
-    
-    // If we're at the last set and it's incomplete, wrap around
     const visibleListings = allFeaturedListings.slice(startIndex, endIndex);
-    
-    // If we need more listings to fill 6 slots, get from the beginning
     if (visibleListings.length < FEATURED_LISTING_VISIBLE_COUNT && allFeaturedListings.length > FEATURED_LISTING_VISIBLE_COUNT) {
       const remaining = FEATURED_LISTING_VISIBLE_COUNT - visibleListings.length;
       const wrappedListings = allFeaturedListings.slice(0, remaining);
       return [...visibleListings, ...wrappedListings];
     }
-    
     return visibleListings;
   };
 
@@ -181,9 +167,7 @@ export default function FeaturedListingsSection({ initialListings = [] }: Featur
     );
   }
 
-  if (visibleListings.length === 0) {
-    return null; // Don't show the section if no featured listings
-  }
+  if (visibleListings.length === 0) return null;
 
   return (
     <section className="mb-12">
@@ -214,7 +198,6 @@ export default function FeaturedListingsSection({ initialListings = [] }: Featur
           <ListingCard key={listing.id} listing={listing} />
         ))}
       </div>
-      {/* Rotation indicators */}
       {totalSets > 1 && (
         <div className="flex justify-center gap-2 mt-6">
           {Array.from({ length: totalSets }).map((_, idx) => (
@@ -222,9 +205,7 @@ export default function FeaturedListingsSection({ initialListings = [] }: Featur
               key={idx}
               onClick={() => setCurrentSetIndex(idx)}
               className={`w-2 h-2 rounded-full transition-all ${
-                idx === currentSetIndex
-                  ? 'bg-trini-gold w-6'
-                  : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400'
+                idx === currentSetIndex ? 'bg-trini-gold w-6' : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400'
               }`}
               aria-label={`Show set ${idx + 1}`}
             />
