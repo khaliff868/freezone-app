@@ -613,8 +613,7 @@ export default function CreateListingPage() {
                         </div>
                       </div>
                       <p className="text-2xl font-bold text-trini-gold">$300 <span className="text-sm font-normal text-muted-foreground">TTD</span></p>
-                      <p className="text-xs text-muted-foreground mt-1">30 days • Priority placement • Featured badge</p>
-                    </button>
+                      <p className="text-xs text-muted-foreground mt-1">30 days • Priority placement • Featured badge</p>                    </button>
 
                     {/* Regular */}
                     <button
@@ -634,7 +633,7 @@ export default function CreateListingPage() {
                           {selectedPlan === 'REGULAR' && <div className="w-2 h-2 rounded-full bg-white" />}
                         </div>
                       </div>
-                      <p className="text-2xl font-bold text-caribbean-teal">${regularPrice} <span className="text-sm font-normal text-muted-foreground">TTD</span></p>
+                      <p className="text-2xl font-bold text-caribbean-teal">${regularPrice.toLocaleString('en-US')} <span className="text-sm font-normal text-muted-foreground">TTD</span></p>
                       <p className="text-xs text-muted-foreground mt-1">90 days • Standard listing • Browse & search</p>
                       {isPremiumCategory(formData.category) && (
                         <p className="text-xs text-muted-foreground/70 mt-1">* Higher rate for {formData.category.split(' - ')[0]}</p>
@@ -644,7 +643,7 @@ export default function CreateListingPage() {
                   <FieldError message={errors.plan} />
                   {selectedPlan && (
                     <p className="text-xs text-green-600 mt-2 font-medium">
-                      ✓ {selectedPlan === 'FEATURED' ? 'Featured plan — $300 TTD / 30 days' : `Regular plan — $${regularPrice} TTD / 90 days`}
+                      ✓ {selectedPlan === 'FEATURED' ? 'Featured plan — $300 TTD / 30 days' : `Regular plan — $${regularPrice.toLocaleString('en-US')} TTD / 90 days`}
                     </p>
                   )}
                 </div>
