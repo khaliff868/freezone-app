@@ -467,11 +467,6 @@ export default function ListingDetailPage() {
 
   const isOwner = session?.user?.id === listing?.user?.id;
   const isSold = listing?.status === 'SOLD';
-
-// Detect banner ads
-  const isBanner =
-    listing?.category === 'Banner Ads' ||
-    listing?.listingType === 'BANNER';
   const regularPrice = listing ? getRegularPrice(listing.category) : 25;
 
   if (loading) {
@@ -604,8 +599,8 @@ export default function ListingDetailPage() {
               <div className="bg-gradient-to-br from-trini-red to-tropical-orange rounded-2xl shadow-xl p-6 text-white">
                 <p className="text-white/80 text-sm mb-1">Price</p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold">${listing.price}</span>
-                  <span className="text-xl">{listing.currency}</span>
+                  <span className="text-4xl font-bold">${Math.round(listing.price).toLocaleString('en-US')}</span>
+                  <span className="text-xl">TTD</span>
                 </div>
               </div>
             )}
@@ -653,7 +648,7 @@ export default function ListingDetailPage() {
                   </div>
                 )}
 
-                {(listing.status === 'PENDING_PAYMENT' || isBanner) && (
+                {listing.status === 'PENDING_PAYMENT' && (
                   <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-800 mb-3">
                     <AlertCircle className="w-4 h-4 inline mr-2" />Payment required to publish this listing.
                     {!paymentExpired && timeRemaining && <p className="text-sm text-gray-600 mt-2">Payment request expires in: {timeRemaining}</p>}
@@ -694,7 +689,7 @@ export default function ListingDetailPage() {
                   </div>
                 )}
 
-                {(listing.status === 'ACTIVE' || listing.status === 'EXPIRED' || isBanner) && listing.category !== 'Free Items' && (
+                {(listing.status === 'ACTIVE' || listing.status === 'EXPIRED') && listing.category !== 'Free Items' && (
                   <div>
                     <button onClick={handlePayFee} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-trini-gold to-tropical-orange text-white font-semibold rounded-xl hover:scale-105 transition-transform">
                       <RefreshCcw className="w-5 h-5" />Renew Listing
@@ -709,7 +704,7 @@ export default function ListingDetailPage() {
                   </button>
                 )}
 
-                {(!isSold || isBanner) && (
+                {!isSold && (
                   <button onClick={() => router.push(`/dashboard/listings/${listingId}/edit`)} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-caribbean-teal/10 text-caribbean-teal font-semibold rounded-xl hover:bg-caribbean-teal/20 transition">
                     <Edit className="w-5 h-5" />Edit Listing
                   </button>
@@ -719,7 +714,7 @@ export default function ListingDetailPage() {
                   <Trash2 className="w-5 h-5" />Delete Listing
                 </button>
 
-                {!isSold && !isBanner && (listing.status === 'ACTIVE' || listing.status === 'PENDING_PAYMENT' || listing.status === 'PENDING_APPROVAL') && (
+                {!isSold && (listing.status === 'ACTIVE' || listing.status === 'PENDING_PAYMENT' || listing.status === 'PENDING_APPROVAL') && (
                   <button onClick={handleMarkAsSold} disabled={markingAsSold} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-caribbean-ocean/10 text-caribbean-ocean font-semibold rounded-xl hover:bg-caribbean-ocean/20 transition disabled:opacity-50">
                     {markingAsSold ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingBag className="w-5 h-5" />}
                     {markingAsSold ? 'Marking...' : 'Mark as Sold'}
@@ -784,7 +779,7 @@ export default function ListingDetailPage() {
                         <span className="px-2 py-0.5 bg-trini-gold text-trini-black text-xs font-bold rounded-full">POPULAR</span>
                       </div>
                       <div className="text-right">
-                        <span className="text-2xl font-bold text-trini-gold">${FEATURED_PRICE}</span>
+                        <span className="text-2xl font-bold text-trini-gold">${FEATURED_PRICE.toLocaleString('en-US')}</span>
                         <span className="text-gray-500 text-sm"> TTD</span>
                       </div>
                     </div>
@@ -808,7 +803,7 @@ export default function ListingDetailPage() {
                         <span className="text-lg font-bold text-gray-900">Regular</span>
                       </div>
                       <div className="text-right">
-                        <span className="text-2xl font-bold text-caribbean-teal">${regularPrice}</span>
+                        <span className="text-2xl font-bold text-caribbean-teal">${regularPrice.toLocaleString('en-US')}</span>
                         <span className="text-gray-500 text-sm"> TTD</span>
                       </div>
                     </div>
@@ -831,7 +826,7 @@ export default function ListingDetailPage() {
               <>
                 <div className="mb-4 p-3 bg-gray-50 rounded-xl flex items-center justify-between">
                   <span className="text-sm text-gray-600">
-                    {selectedPlan === 'FEATURED' ? `⭐ Featured — $${FEATURED_PRICE} TTD / ${FEATURED_DAYS} days` : `Regular — $${regularPrice} TTD / ${REGULAR_DAYS} days`}
+                    {selectedPlan === 'FEATURED' ? `⭐ Featured — $${FEATURED_PRICE.toLocaleString('en-US')} TTD / ${FEATURED_DAYS} days` : `Regular — $${regularPrice.toLocaleString('en-US')} TTD / ${REGULAR_DAYS} days`}
                   </span>
                   <button onClick={() => setPaymentStep('plan')} className="text-xs text-caribbean-teal hover:underline">Change</button>
                 </div>
@@ -860,7 +855,7 @@ export default function ListingDetailPage() {
               <>
                 <div className="bg-gradient-to-r from-caribbean-green to-tropical-lime rounded-xl p-4 mb-6 text-white">
                   <p className="text-white/80 text-sm">Amount Due</p>
-                  <p className="text-3xl font-bold">${paymentInfo.amount} {paymentInfo.currency}</p>
+                  <p className="text-3xl font-bold">${Math.round(paymentInfo.amount).toLocaleString('en-US')} {paymentInfo.currency}</p>
                   {paymentInfo.usdAmount && <p className="text-white/80 text-sm">≈ ${paymentInfo.usdAmount} USD</p>}
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4 mb-4">
