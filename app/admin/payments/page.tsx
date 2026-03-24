@@ -127,7 +127,7 @@ export default function AdminPaymentsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-semibold text-gray-900">
-                        ${typeof payment.amount === 'number' ? payment.amount.toFixed(2) : payment.amount}
+                        ${Math.round(typeof payment.amount === 'number' ? payment.amount : parseFloat(payment.amount)).toLocaleString('en-US')} TTD
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
