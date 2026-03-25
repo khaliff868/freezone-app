@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
-import { Check, X, ArrowLeft, ExternalLink, FileText } from 'lucide-react';
+import { Check, X, ArrowLeft, FileText } from 'lucide-react';
 import Link from 'next/link';
 
 type Payment = {
@@ -145,11 +145,6 @@ export default function AdminPaymentsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900 max-w-xs truncate">{getListingLabel(payment)}</div>
-                      {payment.listing?.id && (
-                        <a href={`/dashboard/listings/${payment.listing.id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-0.5">
-                          View listing <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-semibold text-gray-900">
