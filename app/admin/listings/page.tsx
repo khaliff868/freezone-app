@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
-import { CheckCircle, XCircle, Eye, ExternalLink, Image as ImageIcon, Trash2, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
+import { CheckCircle, XCircle, ExternalLink, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 type Listing = {
   id: string;
@@ -20,7 +21,6 @@ type Listing = {
     name: string;
     email: string;
   };
-  feePayments: { status: string }[];
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -34,6 +34,9 @@ const STATUS_COLORS: Record<string, string> = {
   SWAPPED: 'bg-blue-100 text-blue-800',
   REMOVED: 'bg-red-100 text-red-800',
 };
+
+// Statuses that need admin moderation review
+const NEEDS_MODERATION = ['PENDING_APPROVAL', 'PENDING_PAYMENT'];
 
 export default function AdminListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
@@ -61,15 +64,17 @@ export default function AdminListingsPage() {
     }
   };
 
-  const handleApprove = async (listingId: string, isPendingPayment: boolean) => {
+  // Approve = mark as content-approved, moves to PENDING_PAYMENT if not paid yet
+  // or PENDING_APPROVAL → PENDING_PAYMENT (waiting for payment verification)
+  // This does NOT make listing public — payment verification does that
+  const handleApprove = async (listingId: string) => {
     try {
       setProcessing(listingId);
-      const action = isPendingPayment ? 'approve_payment' : 'approve';
       await apiClient('/api/admin/listings', {
         method: 'PUT',
-        body: JSON.stringify({ listingId, action }),
+        body: JSON.stringify({ listingId, action: 'approve' }),
       });
-      toast.success(isPendingPayment ? 'Payment verified and listing activated' : 'Listing approved');
+      toast.success('Listing approved — awaiting payment verification before going live');
       loadListings();
     } catch (error: any) {
       toast.error(error.message || 'Failed to approve listing');
@@ -121,7 +126,7 @@ export default function AdminListingsPage() {
     }
   };
 
-  const pendingCount = listings.filter(l => ['PENDING_APPROVAL', 'PENDING_PAYMENT'].includes(l.status)).length;
+  const pendingCount = listings.filter(l => NEEDS_MODERATION.includes(l.status)).length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -184,17 +189,15 @@ export default function AdminListingsPage() {
                 </tr>
               ) : (
                 listings.map((listing) => {
-                  const isPendingApproval = listing.status === 'PENDING_APPROVAL';
-                  const isPendingPayment = listing.status === 'PENDING_PAYMENT';
-                  const needsApproval = isPendingApproval || isPendingPayment;
+                  const needsModeration = NEEDS_MODERATION.includes(listing.status);
                   const isRemoved = listing.status === 'REJECTED' || listing.status === 'REMOVED';
 
                   return (
                     <tr
                       key={listing.id}
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${needsApproval ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}`}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${needsModeration ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}`}
                     >
-                      {/* Listing */}
+                      {/* Listing info — no payment data */}
                       <td className="px-6 py-4">
                         <div className="flex items-start gap-3">
                           {listing.images?.[0] ? (
@@ -207,7 +210,9 @@ export default function AdminListingsPage() {
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-white">{listing.title}</div>
                             <div className="text-xs text-gray-500">{listing.category} • {listing.listingType}</div>
-                            <div className="text-xs text-gray-500">{listing.price ? `$${Math.round(listing.price).toLocaleString('en-US')} TTD` : 'No price'}</div>
+                            <div className="text-xs text-gray-500">
+                              {listing.price ? `$${Math.round(listing.price).toLocaleString('en-US')} TTD` : 'No price'}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -218,21 +223,22 @@ export default function AdminListingsPage() {
                         <div className="text-xs text-gray-500">{listing.user.email}</div>
                       </td>
 
-                      {/* Status */}
+                      {/* Status — no payment info */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${STATUS_COLORS[listing.status] || 'bg-gray-100 text-gray-800'}`}>
                           {listing.status.replace(/_/g, ' ')}
                         </span>
-                        {listing.expiresAt && (
+                        {listing.expiresAt && listing.status === 'ACTIVE' && (
                           <div className="text-xs text-gray-500 mt-1">
                             Expires: {new Date(listing.expiresAt).toLocaleDateString()}
                           </div>
                         )}
                       </td>
 
-                      {/* Actions */}
+                      {/* Actions — moderation only, no payment actions */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2 flex-wrap">
+
                           {/* Review — always visible */}
                           <a
                             href={`/dashboard/listings/${listing.id}`}
@@ -244,20 +250,20 @@ export default function AdminListingsPage() {
                             Review
                           </a>
 
-                          {/* Approve — only for pending */}
-                          {needsApproval && (
+                          {/* Approve — only for listings needing moderation */}
+                          {needsModeration && (
                             <button
-                              onClick={() => handleApprove(listing.id, isPendingPayment)}
+                              onClick={() => handleApprove(listing.id)}
                               disabled={processing === listing.id}
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                             >
                               <CheckCircle className="w-3 h-3" />
-                              {isPendingPayment ? 'Approve Payment' : 'Approve'}
+                              Approve
                             </button>
                           )}
 
-                          {/* Reject — only for pending */}
-                          {needsApproval && (
+                          {/* Reject — only for listings needing moderation */}
+                          {needsModeration && (
                             <button
                               onClick={() => setRejectModal({ open: true, listingId: listing.id })}
                               disabled={processing === listing.id}
@@ -268,7 +274,7 @@ export default function AdminListingsPage() {
                             </button>
                           )}
 
-                          {/* Remove — for non-rejected listings */}
+                          {/* Remove — for all non-removed listings */}
                           {!isRemoved && (
                             <button
                               onClick={() => handleRemove(listing.id)}
