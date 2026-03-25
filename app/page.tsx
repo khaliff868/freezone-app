@@ -62,10 +62,12 @@ export default async function HomePage() {
   const totalUsers = await prisma.user.count();
   const totalSwaps = await prisma.swapOffer.count({ where: { status: 'COMPLETED' } });
 
-  const featuredListings = allListings.filter(l => l.featured).slice(0, 8);
-  if (featuredListings.length < 8) {
+  // Featured: exactly 6 visible, max 12 in pool
+  const featuredPool = allListings.filter(l => l.featured).slice(0, 12);
+  const featuredListings = featuredPool.slice(0, 6);
+  if (featuredListings.length < 6) {
     const neededIds = new Set(featuredListings.map(l => l.id));
-    const additional = allListings.filter(l => !neededIds.has(l.id)).slice(0, 8 - featuredListings.length);
+    const additional = allListings.filter(l => !neededIds.has(l.id)).slice(0, 6 - featuredListings.length);
     featuredListings.push(...additional);
   }
 
@@ -220,7 +222,7 @@ export default async function HomePage() {
           {/* Main Content */}
           <div className="flex-1 min-w-0">
 
-            {/* Featured Listings */}
+            {/* Featured Listings — 6 cards, 3-col grid (larger cards) */}
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -234,7 +236,7 @@ export default async function HomePage() {
                 </div>
                 <Link href="/browse" className="text-trini-red hover:text-trini-red/80 font-semibold flex items-center gap-1">View All<ArrowRight className="w-4 h-4" /></Link>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {featuredListings.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
               </div>
             </section>
