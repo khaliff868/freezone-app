@@ -43,7 +43,7 @@ const ListingCard = ({ listing }: { listing: ListingWithUser }) => (
     href={`/dashboard/listings/${listing.id}`}
     className="group bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg overflow-hidden card-hover border border-gray-100 dark:border-white/10"
   >
-    <div className="h-44 bg-white border-b border-gray-100 dark:border-white/10 relative flex items-center justify-center">
+    <div className="h-56 bg-white border-b border-gray-100 dark:border-white/10 relative flex items-center justify-center">
       {listing.images && listing.images[0] ? (
         <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
       ) : (
@@ -58,7 +58,7 @@ const ListingCard = ({ listing }: { listing: ListingWithUser }) => (
         {listing.listingType}
       </div>
     </div>
-    <div className="p-4">
+    <div className="p-5">
       <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1 group-hover:text-trini-red transition">{listing.title}</h3>
       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{listing.description}</p>
       <div className="mt-3">
@@ -95,7 +95,8 @@ export default function FeaturedListingsSection({ initialListings = [] }: Featur
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.listings) {
-          setAllFeaturedListings(data.listings);
+          // Cap pool at 12 max for rotation
+          setAllFeaturedListings(data.listings.slice(0, 12));
         }
       }
     } catch (error) {
@@ -152,11 +153,11 @@ export default function FeaturedListingsSection({ initialListings = [] }: Featur
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg overflow-hidden animate-pulse">
-              <div className="h-44 bg-gray-200 dark:bg-gray-700"></div>
-              <div className="p-4">
+              <div className="h-56 bg-gray-200 dark:bg-gray-700"></div>
+              <div className="p-5">
                 <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
               </div>
@@ -193,7 +194,7 @@ export default function FeaturedListingsSection({ initialListings = [] }: Featur
           View All<ArrowRight className="w-4 h-4" />
         </Link>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-500">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 transition-all duration-500">
         {visibleListings.map((listing) => (
           <ListingCard key={listing.id} listing={listing} />
         ))}
