@@ -1,131 +1,124 @@
-// Admin API - Verify Bank Deposit
+// Admin API - Verify or Reject Payment
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
-import { z } from 'zod';
+import { PAID_LISTING_EXPIRY_DAYS } from '@/lib/constants';
 
-export const dynamic = 'force-dynamic';
-
-const verifyPaymentSchema = z.object({
-  action: z.enum(['VERIFY', 'REJECT']),
-  adminNotes: z.string().optional(),
-});
-
-/**
- * POST /api/admin/payments/[id]/verify
- * Verify or reject a bank deposit payment
- */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { paymentId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user || session.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { paymentId } = params;
     const body = await request.json();
+    const { action, reason } = body as { action: 'VERIFY' | 'REJECT'; reason?: string };
 
-    const validationResult = verifyPaymentSchema.safeParse(body);
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: validationResult.error.errors[0]?.message || 'Validation failed' },
-        { status: 400 }
-      );
+    if (!action || !['VERIFY', 'REJECT'].includes(action)) {
+      return NextResponse.json({ error: 'Valid action is required (VERIFY or REJECT)' }, { status: 400 });
     }
 
-    const { action, adminNotes } = validationResult.data;
-
-    // Fetch payment
     const payment = await prisma.feePayment.findUnique({
-      where: { id },
+      where: { id: paymentId },
       include: {
         listing: true,
+        user: true,
       },
     });
 
     if (!payment) {
-      return NextResponse.json(
-        { error: 'Payment not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }
 
-    // Check if payment method is BANK_DEPOSIT or ONLINE_BANK
-    if (payment.method !== 'BANK_DEPOSIT' && payment.method !== 'ONLINE_BANK') {
-      return NextResponse.json(
-        { error: 'Only bank deposits and online bank transfers can be verified' },
-        { status: 400 }
-      );
-    }
-
-    // Check if payment is in PENDING status
     if (payment.status !== 'PENDING') {
       return NextResponse.json(
-        { error: 'Payment is not in pending status' },
+        { error: `Payment is already ${payment.status.toLowerCase()}` },
         { status: 400 }
       );
     }
 
-    if (action === 'VERIFY') {
-      // Verify payment and activate listing
-      if (!payment.listingId) {
-        return NextResponse.json(
-          { error: 'Payment is not associated with a listing' },
-          { status: 400 }
-        );
-      }
-      
-      await prisma.$transaction([
-        prisma.feePayment.update({
-          where: { id },
-          data: {
-            status: 'VERIFIED',
-            verifiedBy: session.user.id,
-            verifiedAt: new Date(),
-            adminNotes: adminNotes ?? undefined,
-          },
-        }),
-        prisma.listing.update({
-          where: { id: payment.listingId },
-          data: {
-            status: 'ACTIVE',
-            activatedAt: new Date(),
-          },
-        }),
-      ]);
+    const now = new Date();
 
-      return NextResponse.json({
-        message: 'Payment verified and listing activated',
-      });
-    } else {
-      // Reject payment
+    if (action === 'VERIFY') {
       await prisma.feePayment.update({
-        where: { id },
+        where: { id: paymentId },
         data: {
-          status: 'REJECTED',
+          status: 'VERIFIED',
           verifiedBy: session.user.id,
-          verifiedAt: new Date(),
-          adminNotes: adminNotes ?? undefined,
+          verifiedAt: now,
         },
       });
 
+      if (payment.listingId) {
+        const expiresAt = new Date(now);
+        expiresAt.setDate(expiresAt.getDate() + PAID_LISTING_EXPIRY_DAYS);
+
+        await prisma.listing.update({
+          where: { id: payment.listingId },
+          data: {
+            status: 'ACTIVE',
+            publishedAt: payment.listing?.publishedAt || now,
+            expiresAt,
+            activatedAt: now,
+          },
+        });
+
+        await prisma.notification.create({
+          data: {
+            userId: payment.userId,
+            type: 'PAYMENT_RECEIVED',
+            title: 'Payment Verified — Listing Live',
+            message: `Your payment for "${payment.listing?.title}" has been verified. Your listing is now live!`,
+            linkUrl: `/dashboard/listings/${payment.listingId}`,
+          },
+        });
+      }
+
       return NextResponse.json({
-        message: 'Payment rejected',
+        message: 'Payment verified and listing activated successfully',
       });
     }
+
+    if (action === 'REJECT') {
+      if (!reason) {
+        return NextResponse.json({ error: 'Rejection reason is required' }, { status: 400 });
+      }
+
+      await prisma.feePayment.update({
+        where: { id: paymentId },
+        data: {
+          status: 'REJECTED',
+          adminNotes: reason,
+        },
+      });
+
+      if (payment.listingId) {
+        await prisma.notification.create({
+          data: {
+            userId: payment.userId,
+            type: 'PAYMENT_RECEIVED',
+            title: 'Payment Rejected',
+            message: `Your payment for "${payment.listing?.title}" was rejected. Reason: ${reason}. You can submit payment again from your listing page.`,
+            linkUrl: `/dashboard/listings/${payment.listingId}`,
+          },
+        });
+      }
+
+      return NextResponse.json({
+        message: 'Payment rejected and user notified. Listing remains pending — user can resubmit.',
+      });
+    }
+
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+
   } catch (error) {
-    console.error('Error verifying payment:', error);
-    return NextResponse.json(
-      { error: 'Failed to verify payment' },
-      { status: 500 }
-    );
+    console.error('Error processing payment verification:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
