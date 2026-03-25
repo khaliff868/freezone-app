@@ -1,28 +1,55 @@
-// Admin API - Listing Management
+// Listings API - List & Create
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
+import { z } from 'zod';
+import { shouldResetMonthlyCounters } from '@/lib/tier-utils';
 import {
   FREE_CATEGORY,
-  FREE_ITEMS_EXPIRY_DAYS,
   PAID_LISTING_EXPIRY_DAYS,
+  LISTING_FEE_AMOUNT
 } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
+const createListingSchema = z.object({
+  title: z.string().min(3, 'Title must be between 3 and 50 characters').max(50, 'Title must be between 3 and 50 characters'),
+  description: z.string().min(1, 'Description is required').max(500, 'Description cannot exceed 500 characters'),
+  category: z.string().min(1, 'Category is required'),
+  condition: z.enum(['NEW', 'LIKE_NEW', 'GOOD', 'FAIR', 'POOR']),
+  location: z.string().min(1, 'Location is required'),
+  price: z.number().nonnegative().nullable().optional(),
+  currency: z.string().default('TTD'),
+  listingType: z.enum(['SELL', 'SWAP', 'BOTH', 'FREE']),
+  swapTerms: z
+    .string()
+    .max(500, 'Swap terms cannot exceed 500 characters')
+    .refine(val => val.length === 0 || val.length >= 3, {
+      message: 'Swap terms must be at least 3 characters',
+    })
+    .nullable()
+    .optional(),
+  images: z.array(z.string()).max(8).default([]),
+}).refine((data) => {
+  if ((data.listingType === 'SELL' || data.listingType === 'BOTH') &&
+      (data.price === null || data.price === undefined)) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Price is required for paid listings',
+  path: ['price'],
+});
+
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const listingType = searchParams.get('type');
     const category = searchParams.get('category');
+    const location = searchParams.get('location');
     const userId = searchParams.get('userId');
     const search = searchParams.get('search');
     const page = parseInt(searchParams.get('page') || '1');
@@ -32,6 +59,7 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
     if (listingType) where.listingType = listingType;
     if (category) where.category = category;
+    if (location) where.location = location;
     if (userId) where.userId = userId;
     if (search) {
       where.OR = [
@@ -45,10 +73,10 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           user: {
-            select: { id: true, name: true, email: true, tier: true },
+            select: { id: true, name: true, email: true, tier: true, verified: true, location: true },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ featured: 'desc' }, { boosted: 'desc' }, { createdAt: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -57,12 +85,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       listings,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (error) {
     console.error('Error fetching listings:', error);
@@ -70,193 +93,87 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { listingId, action, reason } = body;
-
-    if (!listingId || !action) {
+    const validationResult = createListingSchema.safeParse(body);
+    if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Listing ID and action are required' },
+        { error: validationResult.error.errors[0]?.message || 'Validation failed' },
         { status: 400 }
       );
     }
 
-    const listing = await prisma.listing.findUnique({
-      where: { id: listingId },
-      include: { user: true },
-    });
+    const data = validationResult.data;
+    if (data.listingType === 'FREE') data.price = null;
 
-    if (!listing) {
-      return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
+    if (!data.swapTerms || data.swapTerms.trim().length === 0) {
+      data.swapTerms = null;
+    }
+    if (data.listingType === 'SELL' || data.listingType === 'FREE') {
+      data.swapTerms = null;
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { tier: true, sellListingsThisMonth: true, monthlyResetAt: true, trialEndsAt: true, createdAt: true },
+    });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    if (shouldResetMonthlyCounters(user.monthlyResetAt)) {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { sellListingsThisMonth: 0, monthlyResetAt: new Date() },
+      });
+    }
+
+    const isFreeItemsCategory = data.category === FREE_CATEGORY;
     const now = new Date();
 
-    if (action === 'approve') {
-      const isFreeItemsCategory = listing.category === FREE_CATEGORY;
+    let initialStatus: 'PENDING_APPROVAL' | 'PENDING_PAYMENT';
+    let requiresPayment = false;
 
-      if (isFreeItemsCategory) {
-        if (listing.status !== 'PENDING_APPROVAL') {
-          return NextResponse.json(
-            { error: 'Listing is not pending approval' },
-            { status: 400 }
-          );
-        }
-
-        const expiresAt = new Date(now);
-        expiresAt.setDate(expiresAt.getDate() + FREE_ITEMS_EXPIRY_DAYS);
-
-        const updatedListing = await prisma.listing.update({
-          where: { id: listingId },
-          data: {
-            status: 'ACTIVE',
-            publishedAt: listing.publishedAt || now,
-            expiresAt,
-            activatedAt: now,
-          },
-        });
-
-        await prisma.notification.create({
-          data: {
-            userId: listing.userId,
-            type: 'LISTING_APPROVED',
-            title: 'Listing Approved',
-            message: `Your listing "${listing.title}" has been approved and is now live!`,
-            linkUrl: `/dashboard/listings/${listing.id}`,
-          },
-        });
-
-        return NextResponse.json({
-          message: 'Free listing approved and now live',
-          listing: updatedListing,
-        });
-      } else {
-        if (!['PENDING_APPROVAL', 'PENDING_PAYMENT'].includes(listing.status)) {
-          return NextResponse.json(
-            { error: 'Listing is not pending review' },
-            { status: 400 }
-          );
-        }
-
-        const updatedListing = await prisma.listing.update({
-          where: { id: listingId },
-          data: {
-            status: 'PENDING_PAYMENT',
-          },
-        });
-
-        await prisma.notification.create({
-          data: {
-            userId: listing.userId,
-            type: 'LISTING_APPROVED',
-            title: 'Listing Content Approved',
-            message: `Your listing "${listing.title}" has been approved. It will go live once your payment is verified.`,
-            linkUrl: `/dashboard/listings/${listing.id}`,
-          },
-        });
-
-        return NextResponse.json({
-          message: 'Listing content approved. Will go live after payment verification.',
-          listing: updatedListing,
-        });
-      }
+    if (isFreeItemsCategory) {
+      initialStatus = 'PENDING_APPROVAL';
+    } else {
+      initialStatus = 'PENDING_PAYMENT';
+      requiresPayment = true;
     }
 
-    if (action === 'approve_payment') {
-      if (listing.status !== 'PENDING_PAYMENT') {
-        return NextResponse.json(
-          { error: 'Listing is not pending payment' },
-          { status: 400 }
-        );
-      }
+    const listing = await prisma.listing.create({
+      data: {
+        ...data,
+        userId: session.user.id,
+        status: initialStatus,
+        publishedAt: null,
+        expiresAt: null,
+      },
+      include: { user: { select: { id: true, name: true, email: true, tier: true } } },
+    });
 
-      const pendingPayment = await prisma.feePayment.findFirst({
-        where: { listingId, status: 'PENDING' },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (!pendingPayment) {
-        return NextResponse.json(
-          { error: 'No pending payment found for this listing' },
-          { status: 400 }
-        );
-      }
-
-      const expiresAt = new Date(now);
-      expiresAt.setDate(expiresAt.getDate() + PAID_LISTING_EXPIRY_DAYS);
-
-      await prisma.feePayment.update({
-        where: { id: pendingPayment.id },
-        data: {
-          status: 'VERIFIED',
-          verifiedBy: session.user.id,
-          verifiedAt: now,
-        },
-      });
-
-      const updatedListing = await prisma.listing.update({
-        where: { id: listingId },
-        data: {
-          status: 'ACTIVE',
-          publishedAt: listing.publishedAt || now,
-          expiresAt,
-          activatedAt: now,
-        },
-      });
-
-      await prisma.notification.create({
-        data: {
-          userId: listing.userId,
-          type: 'PAYMENT_RECEIVED',
-          title: 'Payment Verified — Listing Live',
-          message: `Your payment for "${listing.title}" has been verified. Your listing is now live!`,
-          linkUrl: `/dashboard/listings/${listing.id}`,
-        },
-      });
-
-      return NextResponse.json({
-        message: 'Payment verified and listing activated',
-        listing: updatedListing,
+    if (data.listingType === 'SELL' || data.listingType === 'BOTH') {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { sellListingsThisMonth: { increment: 1 } },
       });
     }
 
-    if (action === 'reject') {
-      if (!reason) {
-        return NextResponse.json(
-          { error: 'Rejection reason is required' },
-          { status: 400 }
-        );
-      }
-
-      const updatedListing = await prisma.listing.update({
-        where: { id: listingId },
-        data: {
-          status: 'REJECTED',
-          rejectedAt: now,
-          rejectionReason: reason,
-        },
-      });
-
-      await prisma.notification.create({
-        data: {
-          userId: listing.userId,
-          type: 'LISTING_APPROVED',
-          title: 'Listing Rejected',
-          message: `Your listing "${listing.title}" was not approved. Reason: ${reason}`,
-          linkUrl: `/dashboard/listings/${listing.id}`,
-        },
-      });
-
-      return NextResponse.json({
-        message: 'Listing rejected',
-        listing: updatedListing,
-      });
+    let message = 'Listing created successfully';
+    if (initialStatus === 'PENDING_APPROVAL') {
+      message = 'Listing submitted for admin approval. It will be visible once approved.';
+    } else if (initialStatus === 'PENDING_PAYMENT') {
+      message = 'Listing created. Please select a plan and submit payment to publish.';
     }
 
-    if (action === 'remove') {
+    return NextResponse.json(
+      { message, listing, requiresPayment, paymentAmount: requiresPayment ? LISTING_FEE_AMOUNT : 0 },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('Error creating listing:', error);
+    return NextResponse.json({ error: 'Failed to create listing' }, { status: 500 });
+  }
+}
