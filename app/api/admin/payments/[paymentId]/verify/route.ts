@@ -6,6 +6,8 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { PAID_LISTING_EXPIRY_DAYS } from '@/lib/constants';
 
+const BANNER_AD_DURATION_DAYS = 30;
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { paymentId: string } }
@@ -45,6 +47,7 @@ export async function POST(
 
     const now = new Date();
 
+    // ─── APPROVE ─────────────────────────────────────────────────────────────
     if (action === 'VERIFY') {
       await prisma.feePayment.update({
         where: { id: paymentId },
@@ -55,6 +58,7 @@ export async function POST(
         },
       });
 
+      // Activate a regular/featured listing
       if (payment.listingId) {
         const expiresAt = new Date(now);
         expiresAt.setDate(expiresAt.getDate() + PAID_LISTING_EXPIRY_DAYS);
@@ -78,13 +82,48 @@ export async function POST(
             linkUrl: `/dashboard/listings/${payment.listingId}`,
           },
         });
+
+        return NextResponse.json({
+          message: 'Payment verified and listing activated successfully',
+        });
       }
 
-      return NextResponse.json({
-        message: 'Payment verified and listing activated successfully',
-      });
+      // Activate a banner ad
+      if (payment.bannerAdId) {
+        const endsAt = new Date(now);
+        endsAt.setDate(endsAt.getDate() + BANNER_AD_DURATION_DAYS);
+
+        await prisma.bannerAd.update({
+          where: { id: payment.bannerAdId },
+          data: {
+            status: 'ACTIVE',
+            active: true,
+            startsAt: now,
+            endsAt,
+            verifiedAt: now,
+            verifiedBy: session.user.id,
+          },
+        });
+
+        await prisma.notification.create({
+          data: {
+            userId: payment.userId,
+            type: 'PAYMENT_RECEIVED',
+            title: 'Payment Verified — Banner Ad Live',
+            message: `Your payment for your banner ad has been verified. Your banner is now live and in rotation!`,
+            linkUrl: '/dashboard/banners',
+          },
+        });
+
+        return NextResponse.json({
+          message: 'Payment verified and banner ad is now live',
+        });
+      }
+
+      return NextResponse.json({ message: 'Payment verified' });
     }
 
+    // ─── REJECT ───────────────────────────────────────────────────────────────
     if (action === 'REJECT') {
       if (!reason) {
         return NextResponse.json({ error: 'Rejection reason is required' }, { status: 400 });
@@ -98,6 +137,7 @@ export async function POST(
         },
       });
 
+      // Listing stays PENDING_PAYMENT — user can resubmit
       if (payment.listingId) {
         await prisma.notification.create({
           data: {
@@ -110,8 +150,26 @@ export async function POST(
         });
       }
 
+      // Banner stays non-active — user can resubmit
+      if (payment.bannerAdId) {
+        await prisma.bannerAd.update({
+          where: { id: payment.bannerAdId },
+          data: { active: false },
+        });
+
+        await prisma.notification.create({
+          data: {
+            userId: payment.userId,
+            type: 'PAYMENT_RECEIVED',
+            title: 'Banner Ad Payment Rejected',
+            message: `Your banner ad payment was rejected. Reason: ${reason}. You can submit payment again from your dashboard.`,
+            linkUrl: '/dashboard/banners',
+          },
+        });
+      }
+
       return NextResponse.json({
-        message: 'Payment rejected and user notified. Listing remains pending — user can resubmit.',
+        message: 'Payment rejected and user notified. Item remains pending — user can resubmit.',
       });
     }
 
