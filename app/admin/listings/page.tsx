@@ -301,7 +301,7 @@ export default function AdminListingsPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <a
                           href={item.itemType === 'banner'
-                            ? (item.linkUrl || '#')
+                            ? (item.imageUrl || item.linkUrl || '#')
                             : `/dashboard/listings/${item.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
