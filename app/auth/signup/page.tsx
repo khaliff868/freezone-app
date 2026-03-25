@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Mail, Lock, User, Phone, MapPin, ArrowRight, Sparkles } from 'lucide-react';
+import { Mail, Lock, User, Phone, MapPin, ArrowRight, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 
 export default function SignupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -74,10 +76,10 @@ export default function SignupPage() {
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
+
+            {/* Full Name */}
             <div>
-              <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
-                Full Name
-              </label>
+              <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-gradient-to-br from-tropical-purple to-tropical-pink rounded-lg flex items-center justify-center">
                   <User className="text-white" size={16} />
@@ -94,10 +96,9 @@ export default function SignupPage() {
               </div>
             </div>
 
+            {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                Email Address
-              </label>
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-gradient-to-br from-trini-red to-tropical-orange rounded-lg flex items-center justify-center">
                   <Mail className="text-white" size={16} />
@@ -114,47 +115,59 @@ export default function SignupPage() {
               </div>
             </div>
 
+            {/* Password + Confirm */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Password
-                </label>
+                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-gradient-to-br from-caribbean-teal to-caribbean-ocean rounded flex items-center justify-center">
                     <Lock className="text-white" size={12} />
                   </div>
                   <input
                     id="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
-                    className="w-full pl-12 pr-3 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-sm text-gray-900 placeholder:text-gray-400"
+                    className="w-full pl-12 pr-8 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-sm text-gray-900 placeholder:text-gray-400"
                     placeholder="••••••"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Confirm
-                </label>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  required
-                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-sm text-gray-900 placeholder:text-gray-400"
-                  placeholder="••••••"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                />
+                <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">Confirm</label>
+                <div className="relative">
+                  <input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    className="w-full pl-4 pr-8 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-sm text-gray-900 placeholder:text-gray-400"
+                    placeholder="••••••"
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
             </div>
 
+            {/* Phone + Location */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Phone (optional)
-                </label>
+                <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">Phone (optional)</label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-gradient-to-br from-caribbean-green to-tropical-lime rounded flex items-center justify-center">
                     <Phone className="text-white" size={12} />
@@ -170,9 +183,7 @@ export default function SignupPage() {
                 </div>
               </div>
               <div>
-                <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Location
-                </label>
+                <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-gradient-to-br from-trini-gold to-tropical-orange rounded flex items-center justify-center">
                     <MapPin className="text-white" size={12} />
@@ -200,10 +211,7 @@ export default function SignupPage() {
                   Creating account...
                 </div>
               ) : (
-                <>
-                  Create Account
-                  <ArrowRight size={20} />
-                </>
+                <>Create Account<ArrowRight size={20} /></>
               )}
             </button>
           </form>
@@ -211,9 +219,7 @@ export default function SignupPage() {
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               Already have an account?{' '}
-              <Link href="/auth/login" className="text-trini-red hover:text-tropical-orange font-bold transition">
-                Sign in
-              </Link>
+              <Link href="/auth/login" className="text-trini-red hover:text-tropical-orange font-bold transition">Sign in</Link>
             </p>
           </div>
         </div>
