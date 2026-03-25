@@ -1,174 +1,155 @@
+// Admin API - Banner Ad Management
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
-import { BANNER_AD_EXPIRY_DAYS } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const statusFilter = searchParams.get('status');
+
+    const where: any = {};
+
+    if (statusFilter) {
+      if (statusFilter === 'PENDING_PAYMENT') {
+        where.status = { in: ['PENDING_PAYMENT', 'PENDING_VERIFICATION'] };
+      } else if (statusFilter === 'ACTIVE') {
+        where.status = 'ACTIVE';
+      } else if (statusFilter === 'EXPIRED') {
+        where.status = 'EXPIRED';
+      } else if (statusFilter === 'REJECTED') {
+        where.status = 'REJECTED';
+      }
+    }
+
+    const banners = await prisma.bannerAd.findMany({
+      where,
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return NextResponse.json({ banners });
+  } catch (error) {
+    console.error('Error fetching banners:', error);
+    return NextResponse.json({ error: 'Failed to fetch banners' }, { status: 500 });
+  }
+}
 
 export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user || (session.user as any).role !== 'ADMIN') {
+    if (!session?.user || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    const {
-      id,
-      action, // 'approve', 'reject', 'update'
-      reason,
-      adminNotes,
-      title,
-      imageUrl,
-      linkUrl,
-      placement,
-      sortOrder,
-      active,
-    } = body;
+    const { bannerId, action, reason } = body;
 
-    if (!id) {
-      return NextResponse.json({ error: 'Banner ID required' }, { status: 400 });
+    if (!bannerId || !action) {
+      return NextResponse.json({ error: 'Banner ID and action are required' }, { status: 400 });
     }
 
-    const existing = await prisma.bannerAd.findUnique({
-      where: { id },
+    const banner = await prisma.bannerAd.findUnique({
+      where: { id: bannerId },
       include: { user: true },
     });
 
-    if (!existing) {
+    if (!banner) {
       return NextResponse.json({ error: 'Banner not found' }, { status: 404 });
     }
 
     const now = new Date();
 
-    // Handle approval
     if (action === 'approve') {
-      if (existing.status !== 'PENDING_VERIFICATION') {
-        return NextResponse.json({ error: 'Banner is not awaiting verification' }, { status: 400 });
+      if (!['PENDING_PAYMENT', 'PENDING_VERIFICATION'].includes(banner.status)) {
+        return NextResponse.json({ error: 'Banner is not pending review' }, { status: 400 });
       }
 
-      if (!existing.paymentProofUrl) {
-        return NextResponse.json({ error: 'No payment proof found' }, { status: 400 });
-      }
-
-      const endsAt = new Date(now);
-      endsAt.setDate(endsAt.getDate() + BANNER_AD_EXPIRY_DAYS);
-
-      const banner = await prisma.bannerAd.update({
-        where: { id },
-        data: {
-          status: 'ACTIVE',
-          active: true,
-          startsAt: now,
-          endsAt,
-          verifiedAt: now,
-          verifiedBy: session.user.id,
-          adminNotes: adminNotes || null,
-          rejectedAt: null,
-          rejectionReason: null,
-        },
+      await prisma.bannerAd.update({
+        where: { id: bannerId },
+        data: { status: 'PENDING_PAYMENT' },
       });
 
-      await prisma.feePayment.updateMany({
-        where: { bannerAdId: id, status: 'PENDING' },
-        data: {
-          status: 'VERIFIED',
-          verifiedBy: session.user.id,
-          verifiedAt: now,
-          adminNotes: adminNotes || null,
-        },
-      });
-
-      if (existing.userId) {
+      if (banner.userId) {
         await prisma.notification.create({
           data: {
-            userId: existing.userId,
-            type: 'PAYMENT_RECEIVED',
+            userId: banner.userId,
+            type: 'LISTING_APPROVED',
             title: 'Banner Ad Approved',
-            message: `Your banner ad "${existing.title}" has been approved and is now live!`,
+            message: `Your banner ad "${banner.title}" has been approved. It will go live once your payment is verified.`,
             linkUrl: '/dashboard/banners',
           },
         });
       }
 
-      return NextResponse.json({
-        banner,
-        message: 'Banner approved and activated',
-      });
+      return NextResponse.json({ message: 'Banner ad approved — awaiting payment verification' });
     }
 
-    // Handle rejection
     if (action === 'reject') {
       if (!reason) {
         return NextResponse.json({ error: 'Rejection reason is required' }, { status: 400 });
       }
 
-      const banner = await prisma.bannerAd.update({
-        where: { id },
+      await prisma.bannerAd.update({
+        where: { id: bannerId },
         data: {
           status: 'REJECTED',
-          active: false,
           rejectedAt: now,
           rejectionReason: reason,
-          adminNotes: adminNotes || null,
+          active: false,
         },
       });
 
-      await prisma.feePayment.updateMany({
-        where: { bannerAdId: id, status: 'PENDING' },
-        data: {
-          status: 'REJECTED',
-          adminNotes: reason,
-        },
-      });
-
-      if (existing.userId) {
+      if (banner.userId) {
         await prisma.notification.create({
           data: {
-            userId: existing.userId,
-            type: 'PAYMENT_RECEIVED',
+            userId: banner.userId,
+            type: 'LISTING_APPROVED',
             title: 'Banner Ad Rejected',
-            message: `Your banner ad "${existing.title}" was rejected. Reason: ${reason}`,
+            message: `Your banner ad "${banner.title}" was not approved. Reason: ${reason}. You may edit and resubmit.`,
             linkUrl: '/dashboard/banners',
           },
         });
       }
 
-      return NextResponse.json({
-        banner,
-        message: 'Banner rejected',
-      });
+      return NextResponse.json({ message: 'Banner ad rejected and user notified' });
     }
 
-    // Handle direct enable/disable toggle
-    if (typeof active === 'boolean') {
-      const banner = await prisma.bannerAd.update({
-        where: { id },
-        data: {
-          active,
-        },
+    if (action === 'remove') {
+      await prisma.bannerAd.update({
+        where: { id: bannerId },
+        data: { status: 'REJECTED', active: false },
       });
 
-      return NextResponse.json({
-        banner,
-        message: active ? 'Banner enabled' : 'Banner disabled',
-      });
+      if (banner.userId) {
+        await prisma.notification.create({
+          data: {
+            userId: banner.userId,
+            type: 'LISTING_APPROVED',
+            title: 'Banner Ad Removed',
+            message: `Your banner ad "${banner.title}" has been removed by admin.`,
+            linkUrl: '/dashboard/banners',
+          },
+        });
+      }
+
+      return NextResponse.json({ message: 'Banner ad removed successfully' });
     }
 
-    // Regular update
-    const banner = await prisma.bannerAd.update({
-      where: { id },
-      data: {
-        ...(title !== undefined && { title }),
-        ...(imageUrl !== undefined && { imageUrl }),
-        ...(linkUrl !== undefined && { linkUrl: linkUrl || null }),
-        ...(placement !== undefined && { placement }),
-        ...(sortOrder !== undefined && { sortOrder }),
-      },
-    });
-
-    return NextResponse.json({ banner });
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error('Error updating banner:', error);
     return NextResponse.json({ error: 'Failed to update banner' }, { status: 500 });
