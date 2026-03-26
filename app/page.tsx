@@ -3,7 +3,6 @@
 import { prisma } from '@/lib/db';
 import Link from 'next/link';
 import { Sparkles, TrendingUp, RefreshCcw, ShoppingBag, ArrowRight, Tag, Clock, Users, Activity, Zap, Heart, Grid3X3, Eye, Star, MapPin } from 'lucide-react';
-import BannerAd from '@/components/shared/banner-ad';
 import AdBanner from '@/components/shared/ad-banner';
 import { ListingCard } from '@/components/shared/listing-card';
 
@@ -198,13 +197,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Banner Ad - Top */}
-      <section className="pt-6 pb-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <BannerAd placement="homepage_top" />
-        </div>
-      </section>
-
       {/* Main Content Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="lg:hidden mb-6">
@@ -263,11 +255,6 @@ export default async function HomePage() {
             {/* Ad Banner - Middle */}
             <section className="mb-12">
               <AdBanner position="middle" type="horizontal" />
-            </section>
-
-            {/* Banner Ad - Mid */}
-            <section className="mb-12">
-              <BannerAd placement="homepage_mid" />
             </section>
 
             {/* Suggested Swap Matches */}
@@ -331,7 +318,6 @@ export default async function HomePage() {
           {/* Right Sidebar */}
           <div className="w-80 flex-shrink-0 hidden xl:block space-y-6">
             <AdBanner position="right" type="vertical" />
-            <BannerAd placement="homepage_sidebar" />
             <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
               <div className="flex items-center gap-2 mb-4">
                 <Grid3X3 className="w-5 h-5 text-trini-gold" />
@@ -369,7 +355,7 @@ export default async function HomePage() {
                 ))}
               </div>
             </div>
-            <BannerAd placement="homepage_sidebar_bottom" />
+            </div>
           </div>
         </div>
       </div>
