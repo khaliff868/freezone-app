@@ -63,18 +63,9 @@ export default function ContactPage() {
     setEditing(false);
   };
 
-  const Field = ({ label, value, field }: { label: string; value: string; field: keyof ContactInfo }) => (
-    editing ? (
-      <input
-        value={draft[field]}
-        onChange={e => setDraft(prev => ({ ...prev, [field]: e.target.value }))}
-        placeholder={label}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-trini-red focus:border-transparent outline-none"
-      />
-    ) : (
-      <p className="text-gray-700 dark:text-gray-300 text-lg font-medium select-all">{value || '—'}</p>
-    )
-  );
+  const handleFieldChange = (field: keyof ContactInfo, value: string) => {
+    setDraft(prev => ({ ...prev, [field]: value }));
+  };
 
   if (loading) {
     return (
@@ -146,7 +137,12 @@ export default function ContactPage() {
               </div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Phone</h2>
             </div>
-            <Field label="Phone number" value={info.phone} field="phone" />
+            {editing ? (
+              <input value={draft.phone} onChange={e => handleFieldChange('phone', e.target.value)} placeholder="Phone number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-trini-red focus:border-transparent outline-none" />
+            ) : (
+              <p className="text-gray-700 dark:text-gray-300 text-lg font-medium select-all">{info.phone || '—'}</p>
+            )}
           </div>
 
           {/* WhatsApp */}
@@ -157,7 +153,12 @@ export default function ContactPage() {
               </div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">WhatsApp / Phone</h2>
             </div>
-            <Field label="WhatsApp number" value={info.whatsapp} field="whatsapp" />
+            {editing ? (
+              <input value={draft.whatsapp} onChange={e => handleFieldChange('whatsapp', e.target.value)} placeholder="WhatsApp number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-trini-red focus:border-transparent outline-none" />
+            ) : (
+              <p className="text-gray-700 dark:text-gray-300 text-lg font-medium select-all">{info.whatsapp || '—'}</p>
+            )}
           </div>
 
           {/* Email */}
@@ -169,8 +170,19 @@ export default function ContactPage() {
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Email</h2>
             </div>
             <div className="space-y-3">
-              <Field label="Primary email" value={info.email1} field="email1" />
-              <Field label="Secondary email" value={info.email2} field="email2" />
+              {editing ? (
+                <>
+                  <input value={draft.email1} onChange={e => handleFieldChange('email1', e.target.value)} placeholder="Primary email"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-trini-red focus:border-transparent outline-none" />
+                  <input value={draft.email2} onChange={e => handleFieldChange('email2', e.target.value)} placeholder="Secondary email"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-trini-red focus:border-transparent outline-none" />
+                </>
+              ) : (
+                <>
+                  <p className="text-gray-700 dark:text-gray-300 text-lg font-medium select-all">{info.email1 || '—'}</p>
+                  <p className="text-gray-700 dark:text-gray-300 text-lg font-medium select-all">{info.email2 || '—'}</p>
+                </>
+              )}
             </div>
           </div>
 
@@ -187,21 +199,36 @@ export default function ContactPage() {
                 <Music className="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1">TikTok</p>
-                  <Field label="TikTok handle" value={info.tiktok} field="tiktok" />
+                  {editing ? (
+                    <input value={draft.tiktok} onChange={e => handleFieldChange('tiktok', e.target.value)} placeholder="TikTok handle"
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-trini-red outline-none" />
+                  ) : (
+                    <p className="text-gray-900 dark:text-white font-medium select-all">{info.tiktok || '—'}</p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
                 <Facebook className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1">Facebook</p>
-                  <Field label="Facebook page" value={info.facebook} field="facebook" />
+                  {editing ? (
+                    <input value={draft.facebook} onChange={e => handleFieldChange('facebook', e.target.value)} placeholder="Facebook page"
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-trini-red outline-none" />
+                  ) : (
+                    <p className="text-gray-900 dark:text-white font-medium select-all">{info.facebook || '—'}</p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
                 <Instagram className="w-5 h-5 text-pink-600 dark:text-pink-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1">Instagram</p>
-                  <Field label="Instagram handle" value={info.instagram} field="instagram" />
+                  {editing ? (
+                    <input value={draft.instagram} onChange={e => handleFieldChange('instagram', e.target.value)} placeholder="Instagram handle"
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-trini-red outline-none" />
+                  ) : (
+                    <p className="text-gray-900 dark:text-white font-medium select-all">{info.instagram || '—'}</p>
+                  )}
                 </div>
               </div>
             </div>
