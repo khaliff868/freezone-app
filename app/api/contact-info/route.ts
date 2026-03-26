@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { prisma } from '@/lib/db';
 
-const CONFIG_PATH = path.join(process.cwd(), 'data', 'contact-info.json');
+export const dynamic = 'force-dynamic';
 
-const DEFAULT_CONTACT = {
+const DEFAULTS = {
   phone: '290-1117',
   whatsapp: '752-2936',
   email1: 'khaliff@email.com',
@@ -16,26 +15,22 @@ const DEFAULT_CONTACT = {
   instagram: 'Freezonett',
 };
 
-async function readContactInfo() {
-  try {
-    const raw = await fs.readFile(CONFIG_PATH, 'utf-8');
-    return JSON.parse(raw);
-  } catch {
-    return DEFAULT_CONTACT;
-  }
-}
-
-async function writeContactInfo(data: typeof DEFAULT_CONTACT) {
-  await fs.mkdir(path.dirname(CONFIG_PATH), { recursive: true });
-  await fs.writeFile(CONFIG_PATH, JSON.stringify(data, null, 2), 'utf-8');
-}
-
 export async function GET() {
   try {
-    const info = await readContactInfo();
-    return NextResponse.json({ info });
-  } catch {
-    return NextResponse.json({ info: DEFAULT_CONTACT });
+    let settings = await prisma.siteSettings.findUnique({
+      where: { id: 'site_settings' },
+    });
+
+    if (!settings) {
+      settings = await prisma.siteSettings.create({
+        data: { id: 'site_settings', ...DEFAULTS },
+      });
+    }
+
+    return NextResponse.json({ info: settings });
+  } catch (error) {
+    console.error('Error fetching contact info:', error);
+    return NextResponse.json({ info: DEFAULTS });
   }
 }
 
@@ -49,8 +44,11 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { phone, whatsapp, email1, email2, tiktok, facebook, instagram } = body;
 
-    const updated = { phone, whatsapp, email1, email2, tiktok, facebook, instagram };
-    await writeContactInfo(updated);
+    const updated = await prisma.siteSettings.upsert({
+      where: { id: 'site_settings' },
+      update: { phone, whatsapp, email1, email2, tiktok, facebook, instagram },
+      create: { id: 'site_settings', phone, whatsapp, email1, email2, tiktok, facebook, instagram },
+    });
 
     return NextResponse.json({ message: 'Contact info updated', info: updated });
   } catch (error) {
