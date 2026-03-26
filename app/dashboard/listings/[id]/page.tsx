@@ -34,6 +34,8 @@ type Listing = {
     whatsapp: string | null;
     tier: string;
     verified: boolean;
+    location: string | null;
+    createdAt: string;
   };
 };
 
@@ -611,16 +613,21 @@ export default function ListingDetailPage() {
                       </span>
                     )}
                   </p>
-                  <p className="text-sm text-gray-500">Member</p>
+                  <p className="text-xs text-gray-500">
+                    Joined: {new Date(listing.user.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
                 </div>
               </div>
-              {!isOwner && (
-                <div className="border-t border-gray-100 pt-4 space-y-2 text-sm">
-                  <div className="flex gap-2"><span className="text-gray-500 w-24 flex-shrink-0">Email:</span><span className="text-gray-800 break-all">{listing.user.email}</span></div>
-                  <div className="flex gap-2"><span className="text-gray-500 w-24 flex-shrink-0">Phone:</span><span className="text-gray-800">{listing.user.phone || 'Not provided'}</span></div>
-                  <div className="flex gap-2"><span className="text-gray-500 w-24 flex-shrink-0">WhatsApp:</span><span className="text-gray-800">{listing.user.whatsapp || 'Not provided'}</span></div>
-                </div>
-              )}
+              <div className="border-t border-gray-100 pt-4 space-y-2 text-sm">
+                <div className="flex gap-2"><span className="text-gray-500 w-24 flex-shrink-0">Phone:</span><span className="text-gray-800">{listing.user.phone || 'Not provided'}</span></div>
+                <div className="flex gap-2"><span className="text-gray-500 w-24 flex-shrink-0">Location:</span><span className="text-gray-800">{listing.user.location || 'Not provided'}</span></div>
+                {!isOwner && (
+                  <>
+                    <div className="flex gap-2"><span className="text-gray-500 w-24 flex-shrink-0">Email:</span><span className="text-gray-800 break-all">{listing.user.email}</span></div>
+                    <div className="flex gap-2"><span className="text-gray-500 w-24 flex-shrink-0">WhatsApp:</span><span className="text-gray-800">{listing.user.whatsapp || 'Not provided'}</span></div>
+                  </>
+                )}
+              </div>
             </div>
 
             {isOwner && (
