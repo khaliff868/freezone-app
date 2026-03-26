@@ -25,26 +25,6 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
     if (userId) where.userId = userId;
 
-    // Only show payments where the linked listing/banner has been
-    // content-approved in Listing Management (status = PENDING_PAYMENT or ACTIVE).
-    // Items still in PENDING_APPROVAL are not yet ready for payment verification.
-    where.OR = [
-      {
-        listingId: { not: null },
-        bannerAdId: null,
-        listing: { status: { in: ['PENDING_PAYMENT', 'ACTIVE'] } },
-      },
-      {
-        bannerAdId: { not: null },
-        listingId: null,
-        bannerAd: { status: { in: ['PENDING_PAYMENT', 'ACTIVE', 'PENDING_VERIFICATION'] } },
-      },
-      {
-        listingId: null,
-        bannerAdId: null,
-      },
-    ];
-
     const [payments, total] = await Promise.all([
       prisma.feePayment.findMany({
         where,
@@ -63,9 +43,20 @@ export async function GET(request: NextRequest) {
       prisma.feePayment.count({ where }),
     ]);
 
+    // Post-filter in JS: only show payments where linked listing
+    // has been content-approved (PENDING_PAYMENT or ACTIVE),
+    // or it's a banner/standalone payment with no listing FK.
+    const filtered = payments.filter(p => {
+      if (p.listingId && p.listing) {
+        return ['PENDING_PAYMENT', 'ACTIVE'].includes(p.listing.status);
+      }
+      // Banner ad payments or standalone — show all
+      return true;
+    });
+
     return NextResponse.json({
-      payments,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      payments: filtered,
+      pagination: { page, limit, total: filtered.length, pages: Math.ceil(filtered.length / limit) },
     });
   } catch (error) {
     console.error('Error fetching payments:', error);
