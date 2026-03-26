@@ -117,8 +117,8 @@ model User {
   subscriptionEnd       DateTime?
   sellListingsThisMonth Int                @default(0)
   monthlyResetAt        DateTime?
-  trialEndsAt           DateTime?          // 7 days after account creation for free listing posting
-  hasUsedFreeRegularPost Boolean         @default(false) // Tracks if user has used their one free regular listing
+  trialEndsAt           DateTime?
+  hasUsedFreeRegularPost Boolean           @default(false)
   
   // Profile
   phone         String?
@@ -141,27 +141,15 @@ model User {
   feePayments       FeePayment[]
   swapOffersFrom    SwapOffer[]   @relation("SwapOfferFromUser")
   swapOffersTo      SwapOffer[]   @relation("SwapOfferToUser")
-  
-  // Messaging
   conversationsAs1  Conversation[] @relation("ConversationParticipant1")
   conversationsAs2  Conversation[] @relation("ConversationParticipant2")
   messages          Message[]
   notifications     Notification[]
-  
-  // NextAuth
   accounts          Account[]
   sessions          Session[]
-  
-  // Wishlist
   wishlistItems     Wishlist[]
-  
-  // Banner Ads
   bannerAds         BannerAd[]
-  
-  // User Preferences
   preferences       UserPreferences?
-  
-  // Additional profile fields
   displayName       String?
   whatsapp          String?
   
@@ -181,7 +169,6 @@ model Wishlist {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   listingId String
   listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  
   createdAt DateTime @default(now())
   
   @@unique([userId, listingId])
@@ -193,51 +180,35 @@ model Listing {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Basic Info
   title       String
   description String   @db.Text
   category    String
   condition   ListingCondition
   location    String
-  
-  // Pricing
   price       Float?
   currency    String   @default("TTD")
-  
-  // Listing Type & Status
   listingType ListingType
   status      ListingStatus    @default(DRAFT)
   swapTerms   String?          @db.Text
-  
-  // Media
   images      String[]         @default([])
-  
-  // Metadata
   views       Int              @default(0)
   featured    Boolean          @default(false)
   featuredUntil DateTime?
   boosted     Boolean          @default(false)
   boostedUntil  DateTime?
-  
-  // Featured Listing Promotion
   featuredStatus       FeaturedStatus?  @default(NONE)
   featuredPrice        Float?
   featuredStartAt      DateTime?
   featuredExpiresAt    DateTime?
   featuredPaymentProof String?
-  
-  // Timestamps
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  publishedAt DateTime?          // When listing was approved and published
-  expiresAt   DateTime?          // When listing expires (30 days for free items, 90 days for paid)
+  publishedAt DateTime?
+  expiresAt   DateTime?
   activatedAt DateTime?
   soldAt      DateTime?
   rejectedAt  DateTime?
   rejectionReason String?
-  
-  // Relations
   feePayments       FeePayment[]
   offeredInSwaps    SwapOffer[]  @relation("OfferedListing")
   requestedInSwaps  SwapOffer[]  @relation("RequestedListing")
@@ -263,41 +234,29 @@ enum PaymentPurpose {
 }
 
 model FeePayment {
-  id        String   @id @default(cuid())
-  listingId String?   // Optional - can be null for banner ads
-  listing   Listing?  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  bannerAdId String?  // For banner ad payments
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Payment Purpose
-  purpose             PaymentPurpose @default(LISTING_FEE)
-  
-  // Payment Details
-  amount              Float
-  currency            String         @default("TTD")
-  method              PaymentMethod
-  status              PaymentStatus  @default(CREATED)
-  
-  // Provider Info
-  providerTransactionId String?      @unique
-  paypalOrderId         String?      @unique
-  paypalCaptureId       String?      @unique
-  
-  // Bank Deposit Specific
-  reference           String?
-  proofUploadUrl      String?
-  adminNotes          String?        @db.Text
-  verifiedBy          String?
-  verifiedAt          DateTime?
-  
-  // Idempotency
-  idempotencyKey      String?        @unique
-  webhookProcessedAt  DateTime?
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String         @id @default(cuid())
+  listingId             String?
+  listing               Listing?       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  bannerAdId            String?
+  userId                String
+  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose               PaymentPurpose @default(LISTING_FEE)
+  amount                Float
+  currency              String         @default("TTD")
+  method                PaymentMethod
+  status                PaymentStatus  @default(CREATED)
+  providerTransactionId String?        @unique
+  paypalOrderId         String?        @unique
+  paypalCaptureId       String?        @unique
+  reference             String?
+  proofUploadUrl        String?
+  adminNotes            String?        @db.Text
+  verifiedBy            String?
+  verifiedAt            DateTime?
+  idempotencyKey        String?        @unique
+  webhookProcessedAt    DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
   
   @@index([listingId])
   @@index([bannerAdId])
@@ -310,31 +269,21 @@ model FeePayment {
 }
 
 model SwapOffer {
-  id                  String   @id @default(cuid())
-  
-  // Participants
-  fromUserId          String
-  fromUser            User     @relation("SwapOfferFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUserId            String
-  toUser              User     @relation("SwapOfferToUser", fields: [toUserId], references: [id], onDelete: Cascade)
-  
-  // Listings
-  offeredListingId    String
-  offeredListing      Listing  @relation("OfferedListing", fields: [offeredListingId], references: [id], onDelete: Cascade)
-  requestedListingId  String
-  requestedListing    Listing  @relation("RequestedListing", fields: [requestedListingId], references: [id], onDelete: Cascade)
-  
-  // Offer Details
-  status              SwapOfferStatus @default(OFFERED)
-  message             String?         @db.Text
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  respondedAt DateTime?
-  
-  // Relations
-  swapDeal SwapDeal?
+  id                 String          @id @default(cuid())
+  fromUserId         String
+  fromUser           User            @relation("SwapOfferFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId           String
+  toUser             User            @relation("SwapOfferToUser", fields: [toUserId], references: [id], onDelete: Cascade)
+  offeredListingId   String
+  offeredListing     Listing         @relation("OfferedListing", fields: [offeredListingId], references: [id], onDelete: Cascade)
+  requestedListingId String
+  requestedListing   Listing         @relation("RequestedListing", fields: [requestedListingId], references: [id], onDelete: Cascade)
+  status             SwapOfferStatus @default(OFFERED)
+  message            String?         @db.Text
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  respondedAt        DateTime?
+  swapDeal           SwapDeal?
   
   @@index([fromUserId])
   @@index([toUserId])
@@ -345,20 +294,14 @@ model SwapOffer {
 }
 
 model SwapDeal {
-  id             String   @id @default(cuid())
-  swapOfferId    String   @unique
-  swapOffer      SwapOffer @relation(fields: [swapOfferId], references: [id], onDelete: Cascade)
-  
-  // Confirmation Tracking
-  confirmFromUser Boolean  @default(false)
-  confirmToUser   Boolean  @default(false)
-  
-  // Completion
+  id              String    @id @default(cuid())
+  swapOfferId     String    @unique
+  swapOffer       SwapOffer @relation(fields: [swapOfferId], references: [id], onDelete: Cascade)
+  confirmFromUser Boolean   @default(false)
+  confirmToUser   Boolean   @default(false)
   completedAt     DateTime?
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   
   @@index([swapOfferId])
   @@index([completedAt])
@@ -369,24 +312,16 @@ model SwapDeal {
 // ============================================================
 
 model Conversation {
-  id            String   @id @default(cuid())
-  
-  // Participants
+  id             String   @id @default(cuid())
   participant1Id String
   participant1   User     @relation("ConversationParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
   participant2Id String
   participant2   User     @relation("ConversationParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
-  
-  // Optional: Link to listing for context
-  listingId     String?
-  listing       Listing?  @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  
-  // Timestamps
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  // Relations
-  messages      Message[]
+  listingId      String?
+  listing        Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  messages       Message[]
   
   @@unique([participant1Id, participant2Id, listingId])
   @@index([participant1Id])
@@ -396,23 +331,15 @@ model Conversation {
 }
 
 model Message {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  
-  // Sender
   senderId       String
-  sender         User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  
-  // Content
-  content        String   @db.Text
-  
-  // Status
-  read           Boolean  @default(false)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content        String       @db.Text
+  read           Boolean      @default(false)
   readAt         DateTime?
-  
-  // Timestamps
-  createdAt      DateTime @default(now())
+  createdAt      DateTime     @default(now())
   
   @@index([conversationId])
   @@index([senderId])
@@ -435,20 +362,15 @@ enum NotificationType {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      NotificationType
   title     String
-  message   String   @db.Text
-  read      Boolean  @default(false)
-  
-  // Optional links
+  message   String           @db.Text
+  read      Boolean          @default(false)
   linkUrl   String?
-  
-  // Timestamps
-  createdAt DateTime @default(now())
+  createdAt DateTime         @default(now())
   
   @@index([userId])
   @@index([read])
@@ -472,9 +394,8 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   @@unique([provider, providerAccountId])
   @@index([userId])
 }
@@ -485,7 +406,7 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  
   @@index([userId])
 }
 
@@ -493,53 +414,43 @@ model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
-
+  
   @@unique([identifier, token])
 }
-
 
 // ============================================================
 // BANNER ADS
 // ============================================================
 
 model BannerAd {
-  id          String   @id @default(cuid())
-  title       String
-  imageUrl    String
-  linkUrl     String?
-  placement   String   @default("homepage_top") // homepage_top, homepage_mid, browse_top, browse_mid
-  status      BannerStatus @default(PENDING_PAYMENT)
-  active      Boolean  @default(false)  // Legacy field, still used for display eligibility
-  sortOrder   Int      @default(0)
-
-  // Activation window
-  startsAt    DateTime?   // Set when admin approves payment
-  endsAt      DateTime?   // 30 days from approval
-  startDate   DateTime?   // Legacy field
-  endDate     DateTime?   // Legacy field
-
-  // Performance
-  clicks      Int      @default(0)
-  impressions Int      @default(0)
-
-  // Ownership
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id])
-
-  // Payment tracking
-  amount            Float    @default(700) // 700 TTD
-  currency          String   @default("TTD")
-  paymentProofUrl   String?
-  paymentReference  String?
-  adminNotes        String?
-  verifiedAt        DateTime?
-  verifiedBy        String?
-  rejectedAt        DateTime?
-  rejectionReason   String?
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  id               String       @id @default(cuid())
+  title            String
+  imageUrl         String
+  linkUrl          String?
+  placement        String       @default("homepage_top")
+  status           BannerStatus @default(PENDING_PAYMENT)
+  active           Boolean      @default(false)
+  sortOrder        Int          @default(0)
+  startsAt         DateTime?
+  endsAt           DateTime?
+  startDate        DateTime?
+  endDate          DateTime?
+  clicks           Int          @default(0)
+  impressions      Int          @default(0)
+  userId           String?
+  user             User?        @relation(fields: [userId], references: [id])
+  amount           Float        @default(700)
+  currency         String       @default("TTD")
+  paymentProofUrl  String?
+  paymentReference String?
+  adminNotes       String?
+  verifiedAt       DateTime?
+  verifiedBy       String?
+  rejectedAt       DateTime?
+  rejectionReason  String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  
   @@index([placement, status])
   @@index([userId])
   @@index([status])
@@ -557,139 +468,112 @@ model UserPreferences {
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // === Appearance ===
-  theme                    String?   @default("system")   // light, dark, system
-  compactMode              Boolean   @default(false)
-  reduceMotion             Boolean   @default(false)
-
-  // === Notification - General ===
-  enableAllNotifications   Boolean   @default(true)
-  pushNotifications        Boolean   @default(true)
-  emailNotifications       Boolean   @default(true)
-  inAppNotifications       Boolean   @default(true)
-  smsNotifications         Boolean   @default(false)
-  whatsappNotifications    Boolean   @default(false)
-
-  // === Notification - Buyer ===
-  notifyNewMessage         Boolean   @default(true)
-  notifySellerReplied      Boolean   @default(true)
-  notifyOfferAccepted      Boolean   @default(true)
-  notifyOfferDeclined      Boolean   @default(true)
-  notifyItemSold           Boolean   @default(true)
-  notifyItemRelisted       Boolean   @default(true)
-  notifyWishlistUpdated    Boolean   @default(true)
-  notifyPriceDropped       Boolean   @default(true)
-
-  // === Notification - Seller ===
-  notifyBuyerMessage       Boolean   @default(true)
-  notifyNewOffer           Boolean   @default(true)
-  notifyListingApproved    Boolean   @default(true)
-  notifyListingExpired     Boolean   @default(true)
-  notifyRenewalReminder    Boolean   @default(true)
-  notifyListingSold        Boolean   @default(true)
-  notifyPerformanceSummary Boolean   @default(false)
-  notifyPaymentReceived    Boolean   @default(true)
-  notifySwapRequest        Boolean   @default(true)
-
-  // === Notification - Account ===
-  notifyNewDeviceLogin     Boolean   @default(true)
-  notifyPasswordChanged    Boolean   @default(true)
-  notifySecurityAlert      Boolean   @default(true)
-  notifyAccountUpdates     Boolean   @default(true)
-  notifyPolicyUpdates      Boolean   @default(false)
-  notifyPromotionalEmails  Boolean   @default(false)
-
-  // === Privacy & Security ===
-  profileVisibility        String?   @default("public")   // public, members, private
-  showPhone                Boolean   @default(false)
-  showWhatsapp             Boolean   @default(false)
-  showEmail                Boolean   @default(false)
-  allowSearchEngineIndex   Boolean   @default(true)
-  twoFactorEnabled         Boolean   @default(false)
-
-  // === Marketplace Preferences ===
+  theme                    String?  @default("system")
+  compactMode              Boolean  @default(false)
+  reduceMotion             Boolean  @default(false)
+  enableAllNotifications   Boolean  @default(true)
+  pushNotifications        Boolean  @default(true)
+  emailNotifications       Boolean  @default(true)
+  inAppNotifications       Boolean  @default(true)
+  smsNotifications         Boolean  @default(false)
+  whatsappNotifications    Boolean  @default(false)
+  notifyNewMessage         Boolean  @default(true)
+  notifySellerReplied      Boolean  @default(true)
+  notifyOfferAccepted      Boolean  @default(true)
+  notifyOfferDeclined      Boolean  @default(true)
+  notifyItemSold           Boolean  @default(true)
+  notifyItemRelisted       Boolean  @default(true)
+  notifyWishlistUpdated    Boolean  @default(true)
+  notifyPriceDropped       Boolean  @default(true)
+  notifyBuyerMessage       Boolean  @default(true)
+  notifyNewOffer           Boolean  @default(true)
+  notifyListingApproved    Boolean  @default(true)
+  notifyListingExpired     Boolean  @default(true)
+  notifyRenewalReminder    Boolean  @default(true)
+  notifyListingSold        Boolean  @default(true)
+  notifyPerformanceSummary Boolean  @default(false)
+  notifyPaymentReceived    Boolean  @default(true)
+  notifySwapRequest        Boolean  @default(true)
+  notifyNewDeviceLogin     Boolean  @default(true)
+  notifyPasswordChanged    Boolean  @default(true)
+  notifySecurityAlert      Boolean  @default(true)
+  notifyAccountUpdates     Boolean  @default(true)
+  notifyPolicyUpdates      Boolean  @default(false)
+  notifyPromotionalEmails  Boolean  @default(false)
+  profileVisibility        String?  @default("public")
+  showPhone                Boolean  @default(false)
+  showWhatsapp             Boolean  @default(false)
+  showEmail                Boolean  @default(false)
+  allowSearchEngineIndex   Boolean  @default(true)
+  twoFactorEnabled         Boolean  @default(false)
   defaultBrowseLocation    String?
-  preferredCategories      String[]  @default([])
+  preferredCategories      String[] @default([])
   preferredCondition       String?
-  showFeaturedFirst        Boolean   @default(true)
-  showNewestFirst          Boolean   @default(false)
-  hideSoldListings         Boolean   @default(false)
-  hideSwapOnly             Boolean   @default(false)
-  hideFreeItems            Boolean   @default(false)
-  defaultListingView       String?   @default("grid")     // grid, list
-
-  // === Buying Preferences ===
+  showFeaturedFirst        Boolean  @default(true)
+  showNewestFirst          Boolean  @default(false)
+  hideSoldListings         Boolean  @default(false)
+  hideSwapOnly             Boolean  @default(false)
+  hideFreeItems            Boolean  @default(false)
+  defaultListingView       String?  @default("grid")
   budgetMin                Float?
   budgetMax                Float?
-  interestedCategories     String[]  @default([])
-  acceptInternational      Boolean   @default(false)
-  localOnly                Boolean   @default(true)
-  meetUpPreferred          Boolean   @default(true)
-  deliveryPreferred        Boolean   @default(false)
-  autoFollowSearches       Boolean   @default(false)
-  notifyMatchingItems      Boolean   @default(false)
-
-  // === Selling Preferences ===
-  defaultListingType       String?   @default("SELL")     // SELL, SWAP, BOTH, FREE
+  interestedCategories     String[] @default([])
+  acceptInternational      Boolean  @default(false)
+  localOnly                Boolean  @default(true)
+  meetUpPreferred          Boolean  @default(true)
+  deliveryPreferred        Boolean  @default(false)
+  autoFollowSearches       Boolean  @default(false)
+  notifyMatchingItems      Boolean  @default(false)
+  defaultListingType       String?  @default("SELL")
   defaultItemLocation      String?
-  defaultCondition         String?   @default("GOOD")
-  autoRenewListing         Boolean   @default(false)
-  renewalReminder          Boolean   @default(true)
-  showSellerPhone          Boolean   @default(false)
-  showSellerWhatsapp       Boolean   @default(false)
-  allowOffers              Boolean   @default(true)
-  allowSwapProposals       Boolean   @default(true)
-  vacationMode             Boolean   @default(false)
-  autoMarkUnavailable      Boolean   @default(true)
-  preferredContactMethod   String?   @default("message")  // message, phone, whatsapp
-
-  // === Messaging & Chat ===
-  allowBuyerMessages       Boolean   @default(true)
-  allowLoggedInOnly        Boolean   @default(true)
-  muteMessageSounds        Boolean   @default(false)
-  emailOnMessage           Boolean   @default(true)
-  showReadReceipts         Boolean   @default(true)
-  showOnlineStatus         Boolean   @default(true)
-  autoReplyMessage         String?   @db.Text
-
-  // === Payment / Payout ===
+  defaultCondition         String?  @default("GOOD")
+  autoRenewListing         Boolean  @default(false)
+  renewalReminder          Boolean  @default(true)
+  showSellerPhone          Boolean  @default(false)
+  showSellerWhatsapp       Boolean  @default(false)
+  allowOffers              Boolean  @default(true)
+  allowSwapProposals       Boolean  @default(true)
+  vacationMode             Boolean  @default(false)
+  autoMarkUnavailable      Boolean  @default(true)
+  preferredContactMethod   String?  @default("message")
+  allowBuyerMessages       Boolean  @default(true)
+  allowLoggedInOnly        Boolean  @default(true)
+  muteMessageSounds        Boolean  @default(false)
+  emailOnMessage           Boolean  @default(true)
+  showReadReceipts         Boolean  @default(true)
+  showOnlineStatus         Boolean  @default(true)
+  autoReplyMessage         String?  @db.Text
   preferredPaymentMethod   String?
   billingEmail             String?
   billingPhone             String?
-  renewalPaymentReminder   Boolean   @default(true)
-  invoiceEmailToggle       Boolean   @default(true)
+  renewalPaymentReminder   Boolean  @default(true)
+  invoiceEmailToggle       Boolean  @default(true)
   payoutPreference         String?
   taxId                    String?
   businessName             String?
-
-  // === Delivery / Meet-up ===
-  transactionMethod        String?   @default("both")     // meetup, delivery, both
-  preferredMeetupAreas     String?   @db.Text
-  deliveryAvailable        Boolean   @default(false)
+  transactionMethod        String?  @default("both")
+  preferredMeetupAreas     String?  @db.Text
+  deliveryAvailable        Boolean  @default(false)
   deliveryFee              String?
-  pickupInstructions       String?   @db.Text
-  availableTimes           String?   @db.Text
-
-  // === Personalization ===
-  saveRecentlyViewed       Boolean   @default(true)
-  personalizedRecs         Boolean   @default(true)
-  recommendedCategories    Boolean   @default(true)
-  trendingItems            Boolean   @default(true)
-  promotionalSuggestions   Boolean   @default(false)
-  homepagePersonalization  Boolean   @default(true)
-
-  // === Connected Accounts ===
+  pickupInstructions       String?  @db.Text
+  availableTimes           String?  @db.Text
+  saveRecentlyViewed       Boolean  @default(true)
+  personalizedRecs         Boolean  @default(true)
+  recommendedCategories    Boolean  @default(true)
+  trendingItems            Boolean  @default(true)
+  promotionalSuggestions   Boolean  @default(false)
+  homepagePersonalization  Boolean  @default(true)
   facebookUrl              String?
   instagramUrl             String?
   tiktokUrl                String?
   websiteUrl               String?
   storeName                String?
-
-  // Timestamps
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
   @@index([userId])
+}
+
 // ============================================================
 // SITE SETTINGS MODEL
 // ============================================================
