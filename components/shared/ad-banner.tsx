@@ -14,12 +14,12 @@ interface AdBannerProps {
   className?: string;
 }
 
-// Map position to BannerAd placement values
+// Map position to BannerAd placement values (new + legacy)
 const PLACEMENT_MAP: Record<AdBannerPosition, string[]> = {
-  top: ['homepage_top', 'browse_top'],
-  middle: ['homepage_mid', 'browse_mid'],
-  left: ['homepage_sidebar', 'browse_sidebar'],
-  right: ['homepage_sidebar', 'homepage_sidebar_bottom', 'browse_sidebar', 'browse_sidebar_bottom'],
+  top: ['homepage_top_middle', 'homepage_top', 'browse_top_bottom', 'browse_top'],
+  middle: ['homepage_top_middle', 'homepage_mid', 'browse_top_bottom', 'browse_mid'],
+  left: ['homepage_sides', 'browse_sides', 'homepage_sidebar', 'browse_sidebar'],
+  right: ['homepage_sides', 'browse_sides', 'homepage_sidebar', 'homepage_sidebar_bottom', 'browse_sidebar', 'browse_sidebar_bottom'],
 };
 
 const ROTATION_INTERVAL = 5 * 60 * 1000; // 5 minutes
