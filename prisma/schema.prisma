@@ -690,4 +690,19 @@ model UserPreferences {
   updatedAt  DateTime @updatedAt
 
   @@index([userId])
+// ============================================================
+// SITE SETTINGS MODEL
+// ============================================================
+
+model SiteSettings {
+  id        String   @id @default("site_settings")
+  phone     String   @default("290-1117")
+  whatsapp  String   @default("752-2936")
+  email1    String   @default("khaliff@email.com")
+  email2    String   @default("freezone@marketplace.com")
+  tiktok    String   @default("freezone@tt")
+  facebook  String   @default("Freezonett")
+  instagram String   @default("Freezonett")
+  updatedAt DateTime @updatedAt
+}
 }
