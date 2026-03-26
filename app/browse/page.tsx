@@ -12,7 +12,6 @@ import {
   Activity, Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import BannerAd from '@/components/shared/banner-ad';
 import AdBanner from '@/components/shared/ad-banner';
 
 interface SearchSuggestion { id: string; title: string; category: string; price: number | null; }
@@ -350,7 +349,6 @@ function BrowsePageInner() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 pt-6"><AdBanner position="top" type="horizontal" /></div>
-      <div className="max-w-7xl mx-auto px-6 pt-4"><BannerAd placement="browse_top" /></div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="lg:hidden mb-6 space-y-4"><AdBanner position="left" type="horizontal" /></div>
@@ -676,13 +674,11 @@ function BrowsePageInner() {
             )}
 
             <div className="mt-8"><AdBanner position="middle" type="horizontal" /></div>
-            <div className="mt-6"><BannerAd placement="browse_mid" /></div>
           </div>
 
           {/* Right Sidebar */}
           <div className="w-72 flex-shrink-0 hidden xl:block space-y-6">
             <AdBanner position="right" type="vertical" />
-            <BannerAd placement="browse_sidebar" />
             {!sectionsLoading && sectionsData?.featured && sectionsData.featured.length > 0 && (
               <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-white/10">
                 <div className="flex items-center gap-2 mb-4"><Star className="w-5 h-5 text-trini-gold" /><h3 className="text-lg font-bold text-gray-900 dark:text-white">Featured</h3></div>
@@ -718,7 +714,6 @@ function BrowsePageInner() {
                 </div>
               </div>
             )}
-            <BannerAd placement="browse_sidebar_bottom" />
           </div>
         </div>
         <div className="xl:hidden mt-6"><AdBanner position="right" type="horizontal" /></div>
