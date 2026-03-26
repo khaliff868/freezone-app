@@ -705,4 +705,3 @@ model SiteSettings {
   instagram String   @default("Freezonett")
   updatedAt DateTime @updatedAt
 }
-}
