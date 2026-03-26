@@ -70,23 +70,23 @@ export default async function HomePage() {
     featuredListings.push(...additional);
   }
 
-  const latestListings = allListings.slice(0, 10);
+  const latestListings = allListings.slice(0, 8);
 
   const swapListings = allListings
     .filter(l => l.listingType === 'SWAP' || l.listingType === 'BOTH')
-    .slice(0, 10);
-  if (swapListings.length < 10) {
+    .slice(0, 8);
+  if (swapListings.length < 8) {
     const swapIds = new Set(swapListings.map(l => l.id));
-    const additional = allListings.filter(l => !swapIds.has(l.id)).slice(0, 10 - swapListings.length);
+    const additional = allListings.filter(l => !swapIds.has(l.id)).slice(0, 8 - swapListings.length);
     swapListings.push(...additional);
   }
 
   const trendingListings = [...allListings]
     .sort((a, b) => (b.views || 0) - (a.views || 0))
-    .slice(0, 10);
+    .slice(0, 8);
 
   const shuffled = [...allListings].sort(() => Math.random() - 0.5);
-  const recommendedListings = shuffled.slice(0, 10);
+  const recommendedListings = shuffled.slice(0, 8);
 
   const categoryMap: Record<string, number> = {};
   allListings.forEach(l => {
