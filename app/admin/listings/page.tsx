@@ -202,7 +202,6 @@ export default function AdminListingsPage() {
         {[
           { key: 'all', label: 'All' },
           { key: 'PENDING_APPROVAL', label: 'Pending Approval' },
-          { key: 'PENDING_PAYMENT', label: 'Pending Payment' },
           { key: 'ACTIVE', label: 'Active' },
           { key: 'EXPIRED', label: 'Expired' },
           { key: 'REJECTED', label: 'Rejected' },
