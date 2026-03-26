@@ -54,7 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <QuickPostFAB />
         </Providers>
 
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="top-right" duration={2500} closeButton />
       </body>
     </html>
   );
