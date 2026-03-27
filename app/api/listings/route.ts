@@ -32,15 +32,7 @@ const createListingSchema = z.object({
     .nullable()
     .optional(),
   images: z.array(z.string()).max(8).default([]),
-}).refine((data) => {
-  if ((data.listingType === 'SELL' || data.listingType === 'BOTH') &&
-      (data.price === null || data.price === undefined)) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Price is required for paid listings',
-  path: ['price'],
+  plan: z.enum(['FEATURED', 'REGULAR']).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -108,14 +100,11 @@ export async function POST(request: NextRequest) {
     }
 
     const data = validationResult.data;
-    if (data.listingType === 'FREE') data.price = null;
+    const isFeatured = data.plan === 'FEATURED';
 
-    if (!data.swapTerms || data.swapTerms.trim().length === 0) {
-      data.swapTerms = null;
-    }
-    if (data.listingType === 'SELL' || data.listingType === 'FREE') {
-      data.swapTerms = null;
-    }
+    if (data.listingType === 'FREE') data.price = null;
+    if (!data.swapTerms || data.swapTerms.trim().length === 0) data.swapTerms = null;
+    if (data.listingType === 'SELL' || data.listingType === 'FREE') data.swapTerms = null;
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -131,44 +120,3 @@ export async function POST(request: NextRequest) {
     }
 
     const isFreeItemsCategory = data.category === FREE_CATEGORY;
-
-    // Flow:
-    // Free Items → PENDING_APPROVAL (admin approves content → ACTIVE, no payment)
-    // Paid listings → PENDING_PAYMENT (user pays first → admin verifies payment → admin approves → ACTIVE)
-    const initialStatus = isFreeItemsCategory ? 'PENDING_APPROVAL' : 'PENDING_PAYMENT';
-    const requiresPayment = !isFreeItemsCategory;
-
-    const listing = await prisma.listing.create({
-      data: {
-        ...data,
-        userId: session.user.id,
-        status: initialStatus,
-        publishedAt: null,
-        expiresAt: null,
-      },
-      include: { user: { select: { id: true, name: true, email: true, tier: true } } },
-    });
-
-    if (data.listingType === 'SELL' || data.listingType === 'BOTH') {
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: { sellListingsThisMonth: { increment: 1 } },
-      });
-    }
-
-    let message = 'Listing created successfully';
-    if (initialStatus === 'PENDING_APPROVAL') {
-      message = 'Listing submitted for admin approval. It will be visible once approved.';
-    } else if (initialStatus === 'PENDING_PAYMENT') {
-      message = 'Listing created! Submit payment to proceed. Admin will review and activate your listing after payment is verified.';
-    }
-
-    return NextResponse.json(
-      { message, listing, requiresPayment, paymentAmount: requiresPayment ? LISTING_FEE_AMOUNT : 0 },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error('Error creating listing:', error);
-    return NextResponse.json({ error: 'Failed to create listing' }, { status: 500 });
-  }
-}
