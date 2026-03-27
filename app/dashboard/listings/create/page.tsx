@@ -315,7 +315,7 @@ export default function CreateListingPage() {
       const res = await fetch('/api/listings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!res.ok) { const error = await res.json(); throw new Error(error.error || 'Failed to create listing'); }
       const data = await res.json();
-      toast.success('Listing created! Pay the listing fee to publish.');
+      toast.success('Listing created! Submit payment to publish.');
       router.push(`/dashboard/listings/${data.listing.id}`);
     } catch (error) {
       console.error('Error creating listing:', error);
