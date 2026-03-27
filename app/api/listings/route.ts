@@ -33,6 +33,15 @@ const createListingSchema = z.object({
     .optional(),
   images: z.array(z.string()).max(8).default([]),
   plan: z.enum(['FEATURED', 'REGULAR']).optional(),
+}).refine((data) => {
+  if ((data.listingType === 'SELL' || data.listingType === 'BOTH') &&
+      (data.price === null || data.price === undefined)) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Price is required for paid listings',
+  path: ['price'],
 });
 
 export async function GET(request: NextRequest) {
@@ -120,3 +129,54 @@ export async function POST(request: NextRequest) {
     }
 
     const isFreeItemsCategory = data.category === FREE_CATEGORY;
+
+    // Flow:
+    // Free Items → PENDING_APPROVAL (admin approves → ACTIVE, no payment)
+    // Paid/Featured → PENDING_PAYMENT (user pays first → admin verifies → admin approves → ACTIVE)
+    const initialStatus = isFreeItemsCategory ? 'PENDING_APPROVAL' : 'PENDING_PAYMENT';
+    const requiresPayment = !isFreeItemsCategory;
+
+    const listing = await prisma.listing.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        category: data.category,
+        condition: data.condition,
+        location: data.location,
+        price: data.price ?? null,
+        currency: data.currency,
+        listingType: data.listingType,
+        swapTerms: data.swapTerms ?? null,
+        images: data.images,
+        userId: session.user.id,
+        status: initialStatus,
+        featured: isFeatured,
+        publishedAt: null,
+        expiresAt: null,
+      },
+      include: { user: { select: { id: true, name: true, email: true, tier: true } } },
+    });
+
+    if (data.listingType === 'SELL' || data.listingType === 'BOTH') {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { sellListingsThisMonth: { increment: 1 } },
+      });
+    }
+
+    let message = 'Listing created! Submit payment to publish.';
+    if (isFreeItemsCategory) {
+      message = 'Listing submitted for admin approval. It will be visible once approved.';
+    } else if (isFeatured) {
+      message = 'Featured listing created! Submit payment to publish.';
+    }
+
+    return NextResponse.json(
+      { message, listing, requiresPayment, paymentAmount: requiresPayment ? LISTING_FEE_AMOUNT : 0 },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('Error creating listing:', error);
+    return NextResponse.json({ error: 'Failed to create listing' }, { status: 500 });
+  }
+}
