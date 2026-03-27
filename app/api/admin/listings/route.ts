@@ -88,6 +88,7 @@ export async function PUT(request: NextRequest) {
 
     const now = new Date();
 
+    // ── APPROVE ──────────────────────────────────────────────────────────────
     if (action === 'approve') {
       const isFreeItemsCategory = listing.category === FREE_CATEGORY;
 
@@ -104,6 +105,7 @@ export async function PUT(request: NextRequest) {
           where: { id: listingId },
           data: {
             status: 'ACTIVE',
+            featured: listing.featured,
             publishedAt: listing.publishedAt || now,
             expiresAt,
             activatedAt: now,
@@ -122,37 +124,40 @@ export async function PUT(request: NextRequest) {
 
         return NextResponse.json({ message: 'Free listing approved and now live', listing: updatedListing });
       } else {
-        // Paid listings: content approved → PENDING_PAYMENT (user now pays, then Verify Payments activates)
-        if (listing.status !== 'PENDING_APPROVAL') {
-          return NextResponse.json({ error: 'Listing is not pending approval' }, { status: 400 });
+        // Paid listings: move from PENDING_PAYMENT → PENDING_APPROVAL
+        // (admin approves content; Verify Payments will activate once payment is verified)
+        if (!['PENDING_PAYMENT', 'PENDING_APPROVAL'].includes(listing.status)) {
+          return NextResponse.json({ error: 'Listing is not pending review' }, { status: 400 });
         }
 
         const updatedListing = await prisma.listing.update({
           where: { id: listingId },
-          data: { status: 'PENDING_PAYMENT' },
+          data: { status: 'PENDING_APPROVAL' },
         });
 
         await prisma.notification.create({
           data: {
             userId: listing.userId,
             type: 'LISTING_APPROVED',
-            title: 'Listing Content Approved',
-            message: `Your listing "${listing.title}" has been approved. Please submit payment to publish it.`,
+            title: listing.featured ? 'Featured Listing Content Approved' : 'Listing Content Approved',
+            message: listing.featured
+              ? `Your featured listing "${listing.title}" has been approved. Submit payment to go live in Featured Listings.`
+              : `Your listing "${listing.title}" has been approved. Submit payment to publish it.`,
             linkUrl: `/dashboard/listings/${listing.id}`,
           },
         });
 
         return NextResponse.json({
-          message: 'Listing content approved. User must now submit payment.',
+          message: 'Listing content approved. Awaiting payment verification.',
           listing: updatedListing,
         });
       }
     }
 
+    // ── APPROVE PAYMENT (used by Verify Payments tab) ─────────────────────
     if (action === 'approve_payment') {
-      // Used only by Verify Payments tab — activates listing after payment proof verified
-      if (listing.status !== 'PENDING_PAYMENT') {
-        return NextResponse.json({ error: 'Listing is not pending payment' }, { status: 400 });
+      if (listing.status !== 'PENDING_APPROVAL') {
+        return NextResponse.json({ error: 'Listing is not pending approval' }, { status: 400 });
       }
 
       const pendingPayment = await prisma.feePayment.findFirst({
@@ -176,6 +181,7 @@ export async function PUT(request: NextRequest) {
         where: { id: listingId },
         data: {
           status: 'ACTIVE',
+          featured: listing.featured,   // preserve featured flag
           publishedAt: listing.publishedAt || now,
           expiresAt,
           activatedAt: now,
@@ -186,8 +192,10 @@ export async function PUT(request: NextRequest) {
         data: {
           userId: listing.userId,
           type: 'PAYMENT_RECEIVED',
-          title: 'Payment Verified — Listing Live',
-          message: `Your payment for "${listing.title}" has been verified. Your listing is now live!`,
+          title: listing.featured ? 'Payment Verified — Featured Listing Live' : 'Payment Verified — Listing Live',
+          message: listing.featured
+            ? `Your payment for featured listing "${listing.title}" has been verified. Your listing is now live in Featured Listings!`
+            : `Your payment for "${listing.title}" has been verified. Your listing is now live!`,
           linkUrl: `/dashboard/listings/${listing.id}`,
         },
       });
@@ -195,6 +203,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: 'Payment verified and listing activated', listing: updatedListing });
     }
 
+    // ── REJECT ────────────────────────────────────────────────────────────────
     if (action === 'reject') {
       if (!reason) {
         return NextResponse.json({ error: 'Rejection reason is required' }, { status: 400 });
@@ -218,6 +227,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: 'Listing rejected', listing: updatedListing });
     }
 
+    // ── REMOVE ────────────────────────────────────────────────────────────────
     if (action === 'remove') {
       const updatedListing = await prisma.listing.update({
         where: { id: listingId },
