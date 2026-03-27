@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Tag, Clock, User, Star, RefreshCcw, Edit, Trash2, CreditCard, AlertCircle, MessageSquare, ArrowRightLeft, X, Check, Loader2, Building, Landmark, Copy, Upload, ExternalLink, Heart, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, MapPin, Tag, Clock, User, Star, RefreshCcw, Edit, Trash2, CreditCard, AlertCircle, MessageSquare, ArrowRightLeft, X, Check, Loader2, Building, Landmark, Copy, Upload, Heart, ShoppingBag } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 import { ImageGallery } from '@/components/ui/image-gallery';
@@ -764,8 +764,7 @@ export default function ListingDetailPage() {
                 <div className="space-y-3">
                   <button onClick={() => handleSelectPaymentMethod('PAYPAL')} disabled={processingPayment} className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition disabled:opacity-50">
                     <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center"><span className="text-white font-bold text-lg">PP</span></div>
-                    <div className="text-left"><p className="font-semibold text-gray-900">PayPal</p><p className="text-sm text-gray-500">Fast & secure online payment</p></div>
-                    <ExternalLink className="w-5 h-5 text-gray-400 ml-auto" />
+                    <div className="text-left"><p className="font-semibold text-gray-900">PayPal</p><p className="text-sm text-gray-500">Send payment to PayPal email</p></div>
                   </button>
                   <button onClick={() => handleSelectPaymentMethod('ONLINE_BANK')} disabled={processingPayment} className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-xl hover:border-caribbean-teal hover:bg-caribbean-teal/10 transition disabled:opacity-50">
                     <div className="w-12 h-12 bg-caribbean-teal rounded-xl flex items-center justify-center"><Building className="w-6 h-6 text-white" /></div>
@@ -795,11 +794,20 @@ export default function ListingDetailPage() {
                 </div>
                 {paymentInfo.method === 'PAYPAL' ? (
                   <>
-                    <p className="text-gray-600 mb-4">Click the button below to complete payment via PayPal.</p>
-                    <a href="https://www.paypal.com/cgi-bin/webscr" target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition mb-4">
-                      Pay with PayPal<ExternalLink className="w-5 h-5" />
-                    </a>
-                    <p className="text-sm text-gray-500 text-center">After payment, your listing will be activated automatically.</p>
+                    <p className="text-gray-600 mb-4">Send your payment via PayPal to the email address below.</p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                      <p className="text-sm text-blue-600 font-medium mb-1">PayPal Payee Email</p>
+                      <div className="flex items-center justify-between">
+                        <p className="font-bold text-blue-900 text-lg">khaliff@email.com</p>
+                        <button onClick={() => copyToClipboard('khaliff@email.com', 'PayPal email')} className="p-2 hover:bg-blue-100 rounded-lg transition">
+                          <Copy className="w-4 h-4 text-blue-600" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
+                      <p className="text-sm text-yellow-800">⚠️ Include your payment reference <span className="font-bold">{paymentInfo.reference}</span> in the PayPal note/memo so we can verify your payment.</p>
+                    </div>
+                    <p className="text-sm text-gray-500 text-center">After sending payment, upload your proof below to complete the process.</p>
                   </>
                 ) : (
                   <>
