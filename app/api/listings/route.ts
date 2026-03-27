@@ -132,10 +132,10 @@ export async function POST(request: NextRequest) {
 
     const isFreeItemsCategory = data.category === FREE_CATEGORY;
 
-    // All listings go to PENDING_APPROVAL first:
-    // - Free Items: admin approves content → ACTIVE
-    // - Paid listings: admin approves content → PENDING_PAYMENT → user pays → admin verifies → ACTIVE
-    const initialStatus: 'PENDING_APPROVAL' = 'PENDING_APPROVAL';
+    // Flow:
+    // Free Items → PENDING_APPROVAL (admin approves content → ACTIVE, no payment)
+    // Paid listings → PENDING_PAYMENT (user pays first → admin verifies payment → admin approves → ACTIVE)
+    const initialStatus = isFreeItemsCategory ? 'PENDING_APPROVAL' : 'PENDING_PAYMENT';
     const requiresPayment = !isFreeItemsCategory;
 
     const listing = await prisma.listing.create({
@@ -156,7 +156,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const message = 'Listing submitted for admin approval. It will be visible once approved and payment is verified.';
+    let message = 'Listing created successfully';
+    if (initialStatus === 'PENDING_APPROVAL') {
+      message = 'Listing submitted for admin approval. It will be visible once approved.';
+    } else if (initialStatus === 'PENDING_PAYMENT') {
+      message = 'Listing created! Submit payment to proceed. Admin will review and activate your listing after payment is verified.';
+    }
 
     return NextResponse.json(
       { message, listing, requiresPayment, paymentAmount: requiresPayment ? LISTING_FEE_AMOUNT : 0 },
