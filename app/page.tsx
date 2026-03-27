@@ -6,6 +6,9 @@ import { Sparkles, TrendingUp, RefreshCcw, ShoppingBag, ArrowRight, Tag, Clock, 
 import AdBanner from '@/components/shared/ad-banner';
 import { ListingCard } from '@/components/shared/listing-card';
 
+// Revalidate every 60 seconds so new listings appear promptly
+export const revalidate = 60;
+
 const CATEGORIES_DATA: Record<string, { emoji: string; color: string }> = {
   'Swaps': { emoji: '🔄', color: 'from-tropical-purple to-caribbean-ocean' },
   'Free Items': { emoji: '🎁', color: 'from-caribbean-green to-tropical-lime' },
@@ -70,7 +73,14 @@ export default async function HomePage() {
     featuredListings.push(...additional);
   }
 
-  const latestListings = allListings.slice(0, 8);
+  // Latest: sort by publishedAt desc so newest live listings appear first
+  const latestListings = [...allListings]
+    .sort((a, b) => {
+      const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : new Date(a.createdAt).getTime();
+      const bTime = b.publishedAt ? new Date(b.publishedAt).getTime() : new Date(b.createdAt).getTime();
+      return bTime - aTime;
+    })
+    .slice(0, 8);
 
   const swapListings = allListings
     .filter(l => l.listingType === 'SWAP' || l.listingType === 'BOTH')
