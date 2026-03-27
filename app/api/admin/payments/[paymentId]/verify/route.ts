@@ -29,7 +29,12 @@ export async function POST(
     const payment = await prisma.feePayment.findUnique({
       where: { id: paymentId },
       include: {
-        listing: true,
+        listing: {
+          select: {
+            id: true, title: true, status: true,
+            featured: true, publishedAt: true,
+          },
+        },
         user: true,
       },
     });
@@ -67,6 +72,7 @@ export async function POST(
           where: { id: payment.listingId },
           data: {
             status: 'ACTIVE',
+            featured: payment.listing?.featured ?? false,
             publishedAt: payment.listing?.publishedAt || now,
             expiresAt,
             activatedAt: now,
