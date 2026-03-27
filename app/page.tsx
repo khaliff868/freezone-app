@@ -53,10 +53,19 @@ type ListingWithUser = {
 };
 
 export default async function HomePage() {
+  const now = new Date();
+
+  // Base query: only fully public, active, non-expired listings
   const allListings = await prisma.listing.findMany({
-    where: { status: 'ACTIVE' },
+    where: {
+      status: 'ACTIVE',
+      OR: [
+        { expiresAt: null },
+        { expiresAt: { gt: now } },
+      ],
+    },
     include: { user: { select: { id: true, name: true, tier: true, verified: true } } },
-    orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
+    orderBy: [{ featured: 'desc' }, { publishedAt: 'desc' }, { createdAt: 'desc' }],
     take: 80,
   });
 
@@ -64,17 +73,31 @@ export default async function HomePage() {
   const totalUsers = await prisma.user.count();
   const totalSwaps = await prisma.swapOffer.count({ where: { status: 'COMPLETED' } });
 
-  // Featured: exactly 6 visible, max 12 in pool
-  const featuredPool = allListings.filter(l => l.featured).slice(0, 12);
+  // ── A. Featured Listings ──────────────────────────────────────────────────
+  // Only truly featured listings — no fallback to non-featured
+  const featuredPool = allListings
+    .filter(l => l.featured === true)
+    .slice(0, 12);
   const featuredListings = featuredPool.slice(0, 6);
-  if (featuredListings.length < 6) {
-    const neededIds = new Set(featuredListings.map(l => l.id));
-    const additional = allListings.filter(l => !neededIds.has(l.id)).slice(0, 6 - featuredListings.length);
-    featuredListings.push(...additional);
-  }
 
-  // Latest: sort by publishedAt desc so newest live listings appear first
+  // ── B. Latest Listings ────────────────────────────────────────────────────
+  // Newest eligible public listings first, ordered by publishedAt/activatedAt
   const latestListings = [...allListings]
+    .sort((a, b) => {
+      const aTime = a.publishedAt
+        ? new Date(a.publishedAt).getTime()
+        : new Date(a.createdAt).getTime();
+      const bTime = b.publishedAt
+        ? new Date(b.publishedAt).getTime()
+        : new Date(b.createdAt).getTime();
+      return bTime - aTime;
+    })
+    .slice(0, 8);
+
+  // ── C. Suggested Swap Matches ─────────────────────────────────────────────
+  // Only SWAP or BOTH type listings — no fallback to sell-only
+  const swapListings = allListings
+    .filter(l => l.listingType === 'SWAP' || l.listingType === 'BOTH')
     .sort((a, b) => {
       const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : new Date(a.createdAt).getTime();
       const bTime = b.publishedAt ? new Date(b.publishedAt).getTime() : new Date(b.createdAt).getTime();
@@ -82,21 +105,41 @@ export default async function HomePage() {
     })
     .slice(0, 8);
 
-  const swapListings = allListings
-    .filter(l => l.listingType === 'SWAP' || l.listingType === 'BOTH')
-    .slice(0, 8);
-  if (swapListings.length < 8) {
-    const swapIds = new Set(swapListings.map(l => l.id));
-    const additional = allListings.filter(l => !swapIds.has(l.id)).slice(0, 8 - swapListings.length);
-    swapListings.push(...additional);
-  }
-
+  // ── D. Trending Listings ──────────────────────────────────────────────────
+  // Sorted by views desc, recency as tie-breaker
   const trendingListings = [...allListings]
-    .sort((a, b) => (b.views || 0) - (a.views || 0))
+    .sort((a, b) => {
+      const viewDiff = (b.views || 0) - (a.views || 0);
+      if (viewDiff !== 0) return viewDiff;
+      const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : new Date(a.createdAt).getTime();
+      const bTime = b.publishedAt ? new Date(b.publishedAt).getTime() : new Date(b.createdAt).getTime();
+      return bTime - aTime;
+    })
     .slice(0, 8);
 
-  const shuffled = [...allListings].sort(() => Math.random() - 0.5);
-  const recommendedListings = shuffled.slice(0, 8);
+  // ── E. Recommended For You ────────────────────────────────────────────────
+  // Stable sort: score by views + recency, exclude already-shown featured/trending
+  const shownIds = new Set([
+    ...featuredListings.map(l => l.id),
+    ...trendingListings.map(l => l.id),
+  ]);
+  const recommendedListings = [...allListings]
+    .filter(l => !shownIds.has(l.id))
+    .sort((a, b) => {
+      // Score = views (capped at 50) + recency bonus (days since published, max 30)
+      const aAge = Math.min(
+        30,
+        Math.floor((now.getTime() - new Date(a.publishedAt || a.createdAt).getTime()) / 86400000)
+      );
+      const bAge = Math.min(
+        30,
+        Math.floor((now.getTime() - new Date(b.publishedAt || b.createdAt).getTime()) / 86400000)
+      );
+      const aScore = Math.min(50, a.views || 0) + (30 - aAge);
+      const bScore = Math.min(50, b.views || 0) + (30 - bAge);
+      return bScore - aScore;
+    })
+    .slice(0, 8);
 
   const categoryMap: Record<string, number> = {};
   allListings.forEach(l => {
