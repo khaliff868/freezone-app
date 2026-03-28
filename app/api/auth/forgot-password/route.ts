@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { randomBytes } from 'crypto';
 import { Resend } from 'resend';
 
+export const dynamic = 'force-dynamic';
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
@@ -12,48 +14,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Email is required' }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    });
 
-    // Always return success to prevent email enumeration
     if (!user) {
       return NextResponse.json({ message: 'If an account exists, a reset link has been sent.' });
     }
 
-    // Generate secure token
     const token = randomBytes(32).toString('hex');
-    const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const expiry = new Date(Date.now() + 60 * 60 * 1000);
 
-    // Save token to user
     await prisma.user.update({
       where: { id: user.id },
       data: { resetToken: token, resetTokenExpiry: expiry },
     });
 
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const resetUrl = `${baseUrl}/auth/reset-password?token=${token}`;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://freezone-app-alpha.vercel.app';
+    const resetLink = `${baseUrl}/auth/reset-password?token=${token}`;
 
     await resend.emails.send({
-      from: 'Freezone <noreply@yourdomain.com>',
+      from: 'Freezone <noreply@mail.freezonett.com>',
       to: user.email,
       subject: 'Reset your Freezone password',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #c0392b, #e67e22); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Freezone</h1>
-            <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0;">Trinidad & Tobago's Premier Marketplace</p>
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+          <div style="background:linear-gradient(135deg,#c0392b,#e67e22);padding:30px;border-radius:12px;text-align:center;margin-bottom:24px;">
+            <h1 style="color:white;margin:0;font-size:28px;">Freezone</h1>
+            <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;">Trinidad and Tobago's Premier Marketplace</p>
           </div>
-          <h2 style="color: #1a1a1a;">Reset Your Password</h2>
-          <p style="color: #555; line-height: 1.6;">Hi ${user.name},</p>
-          <p style="color: #555; line-height: 1.6;">We received a request to reset your password. Click the button below to create a new password. This link expires in <strong>1 hour</strong>.</p>
-          <div style="text-align: center; margin: 32px 0;">
-            <a href="${resetUrl}" style="background: linear-gradient(135deg, #c0392b, #e67e22); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">
+          <h2 style="color:#1a1a1a;">Reset Your Password</h2>
+          <p style="color:#555;line-height:1.6;">Hi ${user.name ?? 'there'},</p>
+          <p style="color:#555;line-height:1.6;">We received a request to reset your password. Click the button below to set a new one. This link expires in <strong>1 hour</strong>.</p>
+          <div style="text-align:center;margin:32px 0;">
+            <a href="${resetLink}" style="background:linear-gradient(135deg,#c0392b,#e67e22);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">
               Reset Password
             </a>
           </div>
-          <p style="color: #888; font-size: 13px; line-height: 1.6;">If you didn't request this, you can safely ignore this email. Your password will not change.</p>
-          <p style="color: #888; font-size: 13px;">Or copy this link: <a href="${resetUrl}" style="color: #c0392b;">${resetUrl}</a></p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-          <p style="color: #aaa; font-size: 12px; text-align: center;">Freezone &mdash; Trinidad & Tobago 🇹🇹</p>
+          <p style="color:#888;font-size:13px;line-height:1.6;">Or copy and paste this link into your browser:<br/><a href="${resetLink}" style="color:#c0392b;word-break:break-all;">${resetLink}</a></p>
+          <p style="color:#888;font-size:13px;">If you did not request a password reset, you can safely ignore this email.</p>
+          <hr style="border:none;border-top:1px solid #eee;margin:24px 0;"/>
+          <p style="color:#aaa;font-size:12px;text-align:center;">Freezone - Trinidad and Tobago</p>
         </div>
       `,
     });
