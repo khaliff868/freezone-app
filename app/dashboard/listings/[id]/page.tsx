@@ -807,7 +807,16 @@ export default function ListingDetailPage() {
                     <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
                       <p className="text-sm text-yellow-800">⚠️ Include your payment reference <span className="font-bold">{paymentInfo.reference}</span> in the PayPal note/memo so we can verify your payment.</p>
                     </div>
-                    <p className="text-sm text-gray-500 text-center">After sending payment, upload your proof below to complete the process.</p>
+                    <p className="text-sm text-gray-600 text-center mb-3">After sending payment, upload your proof below to complete the process.</p>
+                    <input ref={fileInputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleFileChange} />
+                    <button
+                      type="button"
+                      onClick={handleUploadClick}
+                      disabled={uploadingProof}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-caribbean-teal to-caribbean-ocean text-white font-semibold rounded-xl hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploadingProof ? <><Loader2 className="w-5 h-5 animate-spin" />Uploading...</> : <><Upload className="w-5 h-5" />Upload Payment Proof</>}
+                    </button>
                   </>
                 ) : (
                   <>
