@@ -1,5 +1,4 @@
 // Freezone Swap or Sell - Prisma Schema
-// Complete database schema for marketplace with membership tiers, listings, payments, and swaps
 
 generator client {
     provider = "prisma-client-js"
@@ -11,10 +10,6 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
-
-// ============================================================
-// ENUMS
-// ============================================================
 
 enum Role {
   USER
@@ -100,18 +95,31 @@ enum FeaturedStatus {
   EXPIRED
 }
 
-// ============================================================
-// MODELS
-// ============================================================
+enum PaymentPurpose {
+  LISTING_FEE
+  LISTING_RENEWAL
+  BANNER_AD
+  BANNER_RENEWAL
+  FEATURED_LISTING
+  FEATURED_RENEWAL
+}
+
+enum NotificationType {
+  MESSAGE
+  SWAP_OFFER
+  SWAP_ACCEPTED
+  SWAP_DECLINED
+  PAYMENT_RECEIVED
+  LISTING_APPROVED
+  LISTING_SOLD
+}
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(USER)
-  
-  // Membership & Subscription
+  id                    String             @id @default(cuid())
+  email                 String             @unique
+  password              String
+  name                  String
+  role                  Role               @default(USER)
   tier                  MembershipTier     @default(FREE)
   subscriptionStatus    SubscriptionStatus @default(NONE)
   subscriptionStart     DateTime?
@@ -120,49 +128,37 @@ model User {
   monthlyResetAt        DateTime?
   trialEndsAt           DateTime?
   hasUsedFreeRegularPost Boolean           @default(false)
-  
-  // Profile
-  phone         String?
-  location      String?
-  bio           String?
-  avatar        String?
-  verified      Boolean  @default(false)
-  banned        Boolean  @default(false)
-  
-  // Password Reset
-  resetToken       String?
-  resetTokenExpiry DateTime?
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  // Relations
-  listings          Listing[]
-  feePayments       FeePayment[]
-  swapOffersFrom    SwapOffer[]   @relation("SwapOfferFromUser")
-  swapOffersTo      SwapOffer[]   @relation("SwapOfferToUser")
-  conversationsAs1  Conversation[] @relation("ConversationParticipant1")
-  conversationsAs2  Conversation[] @relation("ConversationParticipant2")
-  messages          Message[]
-  notifications     Notification[]
-  accounts          Account[]
-  sessions          Session[]
-  wishlistItems     Wishlist[]
-  bannerAds         BannerAd[]
-  preferences       UserPreferences?
-  displayName       String?
-  whatsapp          String?
-  
+  phone                 String?
+  location              String?
+  bio                   String?
+  avatar                String?
+  verified              Boolean            @default(false)
+  banned                Boolean            @default(false)
+  resetToken            String?
+  resetTokenExpiry      DateTime?
+  displayName           String?
+  whatsapp              String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  listings              Listing[]
+  feePayments           FeePayment[]
+  swapOffersFrom        SwapOffer[]        @relation("SwapOfferFromUser")
+  swapOffersTo          SwapOffer[]        @relation("SwapOfferToUser")
+  conversationsAs1      Conversation[]     @relation("ConversationParticipant1")
+  conversationsAs2      Conversation[]     @relation("ConversationParticipant2")
+  messages              Message[]
+  notifications         Notification[]
+  accounts              Account[]
+  sessions              Session[]
+  wishlistItems         Wishlist[]
+  bannerAds             BannerAd[]
+  preferences           UserPreferences?
+
   @@index([email])
   @@index([tier])
   @@index([role])
   @@index([createdAt])
 }
-
-// ============================================================
-// WISHLIST MODEL
-// ============================================================
 
 model Wishlist {
   id        String   @id @default(cuid())
@@ -171,51 +167,52 @@ model Wishlist {
   listingId String
   listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
-  
+
   @@unique([userId, listingId])
   @@index([userId])
   @@index([listingId])
 }
 
 model Listing {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title       String
-  description String   @db.Text
-  category    String
-  condition   ListingCondition
-  location    String
-  price       Float?
-  currency    String   @default("TTD")
-  listingType ListingType
-  status      ListingStatus    @default(DRAFT)
-  swapTerms   String?          @db.Text
-  images      String[]         @default([])
-  views       Int              @default(0)
-  featured    Boolean          @default(false)
-  featuredUntil DateTime?
-  boosted     Boolean          @default(false)
-  boostedUntil  DateTime?
+  id                   String           @id @default(cuid())
+  userId               String
+  user                 User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title                String
+  description          String           @db.Text
+  category             String
+  condition            ListingCondition
+  location             String
+  price                Float?
+  currency             String           @default("TTD")
+  listingType          ListingType
+  status               ListingStatus    @default(DRAFT)
+  swapTerms            String?          @db.Text
+  series               String?
+  images               String[]         @default([])
+  views                Int              @default(0)
+  featured             Boolean          @default(false)
+  featuredUntil        DateTime?
+  boosted              Boolean          @default(false)
+  boostedUntil         DateTime?
   featuredStatus       FeaturedStatus?  @default(NONE)
   featuredPrice        Float?
   featuredStartAt      DateTime?
   featuredExpiresAt    DateTime?
   featuredPaymentProof String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  publishedAt DateTime?
-  expiresAt   DateTime?
-  activatedAt DateTime?
-  soldAt      DateTime?
-  rejectedAt  DateTime?
-  rejectionReason String?
-  feePayments       FeePayment[]
-  offeredInSwaps    SwapOffer[]  @relation("OfferedListing")
-  requestedInSwaps  SwapOffer[]  @relation("RequestedListing")
-  conversations     Conversation[]
-  wishlistedBy      Wishlist[]
-  
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  publishedAt          DateTime?
+  expiresAt            DateTime?
+  activatedAt          DateTime?
+  soldAt               DateTime?
+  rejectedAt           DateTime?
+  rejectionReason      String?
+  feePayments          FeePayment[]
+  offeredInSwaps       SwapOffer[]      @relation("OfferedListing")
+  requestedInSwaps     SwapOffer[]      @relation("RequestedListing")
+  conversations        Conversation[]
+  wishlistedBy         Wishlist[]
+
   @@index([userId])
   @@index([status])
   @@index([listingType])
@@ -223,15 +220,6 @@ model Listing {
   @@index([createdAt])
   @@index([featured])
   @@index([boosted])
-}
-
-enum PaymentPurpose {
-  LISTING_FEE
-  LISTING_RENEWAL
-  BANNER_AD
-  BANNER_RENEWAL
-  FEATURED_LISTING
-  FEATURED_RENEWAL
 }
 
 model FeePayment {
@@ -258,7 +246,7 @@ model FeePayment {
   webhookProcessedAt    DateTime?
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
-  
+
   @@index([listingId])
   @@index([bannerAdId])
   @@index([userId])
@@ -285,7 +273,7 @@ model SwapOffer {
   updatedAt          DateTime        @updatedAt
   respondedAt        DateTime?
   swapDeal           SwapDeal?
-  
+
   @@index([fromUserId])
   @@index([toUserId])
   @@index([offeredListingId])
@@ -303,27 +291,23 @@ model SwapDeal {
   completedAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  
+
   @@index([swapOfferId])
   @@index([completedAt])
 }
 
-// ============================================================
-// MESSAGING MODELS
-// ============================================================
-
 model Conversation {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   participant1Id String
-  participant1   User     @relation("ConversationParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
+  participant1   User      @relation("ConversationParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
   participant2Id String
-  participant2   User     @relation("ConversationParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  participant2   User      @relation("ConversationParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
   listingId      String?
-  listing        Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  listing        Listing?  @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
   messages       Message[]
-  
+
   @@unique([participant1Id, participant2Id, listingId])
   @@index([participant1Id])
   @@index([participant2Id])
@@ -341,25 +325,11 @@ model Message {
   read           Boolean      @default(false)
   readAt         DateTime?
   createdAt      DateTime     @default(now())
-  
+
   @@index([conversationId])
   @@index([senderId])
   @@index([createdAt])
   @@index([read])
-}
-
-// ============================================================
-// NOTIFICATION MODEL
-// ============================================================
-
-enum NotificationType {
-  MESSAGE
-  SWAP_OFFER
-  SWAP_ACCEPTED
-  SWAP_DECLINED
-  PAYMENT_RECEIVED
-  LISTING_APPROVED
-  LISTING_SOLD
 }
 
 model Notification {
@@ -372,15 +342,11 @@ model Notification {
   read      Boolean          @default(false)
   linkUrl   String?
   createdAt DateTime         @default(now())
-  
+
   @@index([userId])
   @@index([read])
   @@index([createdAt])
 }
-
-// ============================================================
-// NEXTAUTH MODELS
-// ============================================================
 
 model Account {
   id                String  @id @default(cuid())
@@ -396,7 +362,7 @@ model Account {
   id_token          String? @db.Text
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@unique([provider, providerAccountId])
   @@index([userId])
 }
@@ -407,7 +373,7 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@index([userId])
 }
 
@@ -415,13 +381,9 @@ model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
-  
+
   @@unique([identifier, token])
 }
-
-// ============================================================
-// BANNER ADS
-// ============================================================
 
 model BannerAd {
   id               String       @id @default(cuid())
@@ -451,7 +413,7 @@ model BannerAd {
   rejectionReason  String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  
+
   @@index([placement, status])
   @@index([userId])
   @@index([status])
@@ -460,15 +422,10 @@ model BannerAd {
   @@index([endsAt])
 }
 
-// ============================================================
-// USER PREFERENCES MODEL
-// ============================================================
-
 model UserPreferences {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  id                       String   @id @default(cuid())
+  userId                   String   @unique
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   theme                    String?  @default("system")
   compactMode              Boolean  @default(false)
   reduceMotion             Boolean  @default(false)
@@ -574,10 +531,6 @@ model UserPreferences {
 
   @@index([userId])
 }
-
-// ============================================================
-// SITE SETTINGS MODEL
-// ============================================================
 
 model SiteSettings {
   id        String   @id @default("site_settings")
