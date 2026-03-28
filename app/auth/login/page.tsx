@@ -1,31 +1,49 @@
 'use client';
 
 import { Suspense } from 'react';
-import { useState, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { signIn } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Mail, Lock, ArrowRight, Sparkles, Eye, EyeOff } from 'lucide-react';
 
 function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
+  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [formData, setFormData] = useState({ email: '', password: '' });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const result = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      });
+      if (result?.error) {
+        toast.error('Invalid email or password');
+      } else if (result?.ok) {
+        toast.success('Login successful!');
+        router.push(callbackUrl);
+        router.refresh();
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('An error occurred during login');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-2xl shadow-2xl p-8">
-      {/* Real HTML form POST — lets browser detect login and offer to save password */}
-      <form
-        method="POST"
-        action={`/api/auth/callback/credentials`}
-        autoComplete="on"
-        className="space-y-6"
-      >
-        {/* NextAuth requires these hidden fields */}
-        <input type="hidden" name="redirect" value="true" />
-        <input type="hidden" name="callbackUrl" value={callbackUrl} />
-        <input type="hidden" name="csrfToken" id="csrfTokenInput" />
-
+      <form onSubmit={handleSubmit} autoComplete="on" className="space-y-6">
         <div>
           <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
           <div className="relative">
@@ -40,6 +58,8 @@ function LoginForm() {
               autoComplete="email"
               className="w-full pl-14 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-gray-900 placeholder:text-gray-400"
               placeholder="you@example.com"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
           </div>
         </div>
@@ -61,6 +81,8 @@ function LoginForm() {
               autoComplete="current-password"
               className="w-full pl-14 pr-12 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-gray-900 placeholder:text-gray-400"
               placeholder="••••••••"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             />
             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -81,7 +103,16 @@ function LoginForm() {
           </label>
         </div>
 
-        <CsrfButton />
+        <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-trini-red via-trini-gold to-tropical-orange hover:opacity-90 text-white font-bold py-4 px-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]">
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Signing in...
+            </div>
+          ) : (
+            <>Sign In <ArrowRight size={20} /></>
+          )}
+        </button>
       </form>
 
       <div className="mt-6 text-center">
@@ -90,45 +121,6 @@ function LoginForm() {
         </p>
       </div>
     </div>
-  );
-}
-
-// Separate component to fetch CSRF token client-side
-function CsrfButton() {
-  const [loading, setLoading] = useState(false);
-
-  const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    setLoading(true);
-    // Fetch CSRF token and inject before submit
-    try {
-      const res = await fetch('/api/auth/csrf');
-      const { csrfToken } = await res.json();
-      const input = document.getElementById('csrfTokenInput') as HTMLInputElement;
-      if (input) input.value = csrfToken;
-      // Now submit the form for real
-      const form = (e.currentTarget as HTMLButtonElement).closest('form') as HTMLFormElement;
-      form.submit();
-    } catch {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={loading}
-      className="w-full bg-gradient-to-r from-trini-red via-trini-gold to-tropical-orange hover:opacity-90 text-white font-bold py-4 px-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
-    >
-      {loading ? (
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          Signing in...
-        </div>
-      ) : (
-        <>Sign In <ArrowRight size={20} /></>
-      )}
-    </button>
   );
 }
 
