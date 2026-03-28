@@ -33,6 +33,7 @@ const createListingSchema = z.object({
     .optional(),
   images: z.array(z.string()).max(8).default([]),
   plan: z.enum(['FEATURED', 'REGULAR']).optional(),
+  series: z.string().max(30).nullable().optional(),
 }).refine((data) => {
   if ((data.listingType === 'SELL' || data.listingType === 'BOTH') &&
       (data.price === null || data.price === undefined)) {
@@ -147,6 +148,7 @@ export async function POST(request: NextRequest) {
         currency: data.currency,
         listingType: data.listingType,
         swapTerms: data.swapTerms ?? null,
+        series: data.series ?? null,
         images: data.images,
         userId: session.user.id,
         status: initialStatus,
