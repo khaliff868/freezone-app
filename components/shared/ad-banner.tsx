@@ -98,7 +98,7 @@ export default function AdBanner({ position, type, className = '' }: AdBannerPro
         <div className="absolute top-2 left-2 z-10 flex items-center gap-1 px-2 py-0.5 bg-black/40 backdrop-blur-sm rounded-full text-[10px] text-white/70 uppercase tracking-wider">
           <Megaphone className="w-3 h-3" />Sponsored
         </div>
-        <div className={`relative w-full bg-gray-800 ${type === 'vertical' ? 'aspect-[3/4]' : 'aspect-[13/3] sm:aspect-[16/3]'}`}>
+        <div className={`relative w-full bg-gray-800 ${type === 'vertical' ? 'aspect-[3/4]' : 'aspect-[16/3] sm:aspect-[20/3]'}`}>
           <Image
             src={banner.imageUrl}
             alt={banner.title}
