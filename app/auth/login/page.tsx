@@ -2,11 +2,11 @@
 
 import { Suspense } from 'react';
 import { useState } from 'react';
+import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Mail, Lock, ArrowRight, Sparkles, Eye, EyeOff } from 'lucide-react';
-import { signIn } from 'next-auth/react';
 
 function LoginForm() {
   const router = useRouter();
@@ -15,40 +15,26 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({ email: '', password: '' });
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const result = await signIn('credentials', {
-        email,
-        password,
+        email: formData.email,
+        password: formData.password,
         redirect: false,
-        callbackUrl,
       });
-
       if (result?.error) {
         toast.error('Invalid email or password');
       } else if (result?.ok) {
-        // Submit the form for real so browser detects successful login
-        // and offers to save the password
         toast.success('Login successful!');
-
-        // Use a hidden real form submit to trigger browser password save
-        const nativeForm = e.currentTarget;
-        const hiddenInput = document.createElement('input');
-        hiddenInput.type = 'hidden';
-        hiddenInput.name = 'dummy';
-        hiddenInput.value = '1';
-        nativeForm.appendChild(hiddenInput);
-
         router.push(callbackUrl);
         router.refresh();
       }
-    } catch {
+    } catch (error) {
+      console.error('Login error:', error);
       toast.error('An error occurred during login');
     } finally {
       setLoading(false);
@@ -57,15 +43,9 @@ function LoginForm() {
 
   return (
     <div className="bg-white rounded-2xl shadow-2xl p-8">
-      <form
-        onSubmit={handleSubmit}
-        autoComplete="on"
-        className="space-y-6"
-      >
+      <form onSubmit={handleSubmit} autoComplete="on" className="space-y-6">
         <div>
-          <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-            Email Address
-          </label>
+          <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
           <div className="relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-gradient-to-br from-trini-red to-tropical-orange rounded-lg flex items-center justify-center">
               <Mail className="text-white" size={16} />
@@ -75,23 +55,19 @@ function LoginForm() {
               name="email"
               type="email"
               required
-              autoComplete="username email"
+              autoComplete="email"
               className="w-full pl-14 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-gray-900 placeholder:text-gray-400"
               placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
           </div>
         </div>
 
         <div>
           <div className="flex justify-between items-center mb-2">
-            <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
-              Password
-            </label>
-            <Link href="/auth/forgot-password" className="text-sm text-trini-red hover:text-tropical-orange font-medium transition">
-              Forgot Password?
-            </Link>
+            <label htmlFor="password" className="block text-sm font-semibold text-gray-700">Password</label>
+            <Link href="/auth/forgot-password" className="text-sm text-trini-red hover:text-tropical-orange font-medium transition">Forgot Password?</Link>
           </div>
           <div className="relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-gradient-to-br from-caribbean-teal to-caribbean-ocean rounded-lg flex items-center justify-center">
@@ -105,14 +81,10 @@ function LoginForm() {
               autoComplete="current-password"
               className="w-full pl-14 pr-12 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-trini-red focus:border-trini-red outline-none transition font-medium text-gray-900 placeholder:text-gray-400"
               placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
-            >
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
@@ -132,14 +104,10 @@ function LoginForm() {
           </label>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-gradient-to-r from-trini-red via-trini-gold to-tropical-orange hover:opacity-90 text-white font-bold py-4 px-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
-        >
+        <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-trini-red via-trini-gold to-tropical-orange hover:opacity-90 text-white font-bold py-4 px-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]">
           {loading ? (
             <div className="flex items-center gap-2">
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               Signing in...
             </div>
           ) : (
@@ -149,14 +117,8 @@ function LoginForm() {
       </form>
 
       <div className="mt-6 text-center">
-        <p className="text-gray-600">
-          Don&apos;t have an account?{' '}
-          <Link
-            href={`/auth/signup${callbackUrl !== '/' ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`}
-            className="text-trini-red hover:text-tropical-orange font-bold transition"
-          >
-            Sign up
-          </Link>
+        <p className="text-gray-600">Don&apos;t have an account?{' '}
+          <Link href={`/auth/signup${callbackUrl !== '/' ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`} className="text-trini-red hover:text-tropical-orange font-bold transition">Sign up</Link>
         </p>
       </div>
     </div>
@@ -174,10 +136,7 @@ export default function LoginPage() {
             </div>
           </div>
           <h1 className="text-4xl font-extrabold text-white mb-2">
-            Freezone <span className="text-trini-gold">Sell</span>
-            <span className="text-white">/</span>
-            <span className="text-trini-gold">Swap</span>
-            <span className="text-white"> or Free</span>
+            Freezone <span className="text-trini-gold">Sell</span><span className="text-white">/</span><span className="text-trini-gold">Swap</span><span className="text-white"> or Free</span>
           </h1>
           <p className="text-white/70">Sign in to your account</p>
         </div>
