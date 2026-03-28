@@ -548,7 +548,7 @@ export default function ListingDetailPage() {
                   <ShoppingBag className="w-5 h-5" />This item has been sold and is no longer available.
                 </div>
               )}
-              <p className="text-gray-600 text-lg leading-relaxed">{listing.description}</p>
+              <p className="text-gray-600 text-lg leading-relaxed whitespace-pre-wrap break-words">{listing.description}</p>
               {listing.swapTerms && (
                 <div className="mt-6 p-4 bg-tropical-purple/10 rounded-xl border border-tropical-purple/20">
                   <h3 className="font-semibold text-tropical-purple flex items-center gap-2 mb-2">
