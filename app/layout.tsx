@@ -48,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         style={{ backgroundColor: '#ffffff' }}
       >
         <Providers>
-          <div className="w-full bg-trini-gold/20 border-b border-trini-gold/40 px-4 py-2 text-center text-xs sm:text-sm text-trini-black dark:text-white leading-snug">
+          <div className="w-full bg-trini-red px-4 py-2 text-center text-xs sm:text-sm text-white font-medium leading-snug">
             🚧 Freezone is in Early Access! You can start Buying, Selling, Swapping or Giving Free. Some features are still being improved. We appreciate your feedback 🙌
           </div>
           <Navbar />
