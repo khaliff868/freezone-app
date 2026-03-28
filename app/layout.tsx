@@ -37,7 +37,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" style={{ colorScheme: 'light' }} suppressHydrationWarning>
       <head>
-        {/* Runs synchronously before paint — prevents dark flash on mobile */}
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'){document.documentElement.classList.add('dark');document.documentElement.style.colorScheme='dark';}else{document.documentElement.classList.remove('dark');document.documentElement.style.colorScheme='light';document.documentElement.style.backgroundColor='#ffffff';}}catch(e){}})();`,
@@ -49,11 +48,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         style={{ backgroundColor: '#ffffff' }}
       >
         <Providers>
+          <div className="w-full bg-trini-gold/20 border-b border-trini-gold/40 px-4 py-2 text-center text-xs sm:text-sm text-trini-black dark:text-white leading-snug">
+            🚧 Freezone is in Early Access! You can start Buying, Selling, Swapping or Giving Free. Some features are still being improved. We appreciate your feedback 🙌
+          </div>
           <Navbar />
           {children}
           <QuickPostFAB />
         </Providers>
-
         <Toaster richColors position="top-right" duration={2500} closeButton />
       </body>
     </html>
