@@ -21,6 +21,7 @@ type Listing = {
   condition: string;
   location: string;
   swapTerms: string | null;
+  series: string | null;
   featured: boolean;
   featuredStatus?: 'ACTIVE' | 'NONE';
   images: string[];
@@ -539,6 +540,9 @@ export default function ListingDetailPage() {
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <h1 className="text-3xl font-bold text-gray-900">{listing.title}</h1>
+                {listing.series && (
+                  <p className="text-lg font-medium text-gray-500 -mt-1">{listing.series}</p>
+                )}
                 <span className={`px-3 py-1.5 rounded-full text-sm font-bold ${getStatusBadge(listing.status)}`}>
                   {listing.status.replace('_', ' ')}
                 </span>
