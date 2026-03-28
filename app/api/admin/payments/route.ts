@@ -6,6 +6,12 @@ import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * GET /api/admin/payments
+ * Returns payments where the related listing has been submitted for payment
+ * (status = PENDING_PAYMENT, PENDING_APPROVAL, or ACTIVE).
+ * All three statuses are valid for payment verification.
+ */
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -21,9 +27,41 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
 
     const where: any = {};
+
     if (method) where.method = method;
     if (status) where.status = status;
     if (userId) where.userId = userId;
+
+    // Only show payments where:
+    // - The linked listing is in PENDING_PAYMENT, PENDING_APPROVAL, or ACTIVE
+    //   (all states where payment verification is relevant)
+    //   OR
+    // - The linked banner has been content-approved
+    //   OR
+    // - It is a standalone payment (no listing, no banner)
+    where.OR = [
+      // Listing payments — show for all payment-relevant statuses
+      {
+        listingId: { not: null },
+        bannerAdId: null,
+        listing: {
+          status: { in: ['PENDING_PAYMENT', 'PENDING_APPROVAL', 'ACTIVE'] },
+        },
+      },
+      // Banner ad payments — only show if banner is content-approved
+      {
+        bannerAdId: { not: null },
+        listingId: null,
+        bannerAd: {
+          status: { in: ['PENDING_PAYMENT', 'ACTIVE', 'PENDING_VERIFICATION'] },
+        },
+      },
+      // Payments with no linked listing or banner (edge case)
+      {
+        listingId: null,
+        bannerAdId: null,
+      },
+    ];
 
     const [payments, total] = await Promise.all([
       prisma.feePayment.findMany({
@@ -43,20 +81,9 @@ export async function GET(request: NextRequest) {
       prisma.feePayment.count({ where }),
     ]);
 
-    // Post-filter in JS: only show payments where linked listing
-    // has been content-approved (PENDING_PAYMENT or ACTIVE),
-    // or it's a banner/standalone payment with no listing FK.
-    const filtered = payments.filter(p => {
-      if (p.listingId && p.listing) {
-        return ['PENDING_PAYMENT', 'ACTIVE'].includes(p.listing.status);
-      }
-      // Banner ad payments or standalone — show all
-      return true;
-    });
-
     return NextResponse.json({
-      payments: filtered,
-      pagination: { page, limit, total: filtered.length, pages: Math.ceil(filtered.length / limit) },
+      payments,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (error) {
     console.error('Error fetching payments:', error);
