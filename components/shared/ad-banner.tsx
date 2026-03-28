@@ -91,7 +91,8 @@ export default function AdBanner({ position, type, className = '' }: AdBannerPro
     }).catch(() => {});
   }, []);
 
-  // If we have a real paid banner, show it
+  // Show nothing while fetching — prevents CTA flash behind real banner
+  if (!loaded) return null;
   if (loaded && banner) {
     const bannerContent = (
       <div className={`relative w-full overflow-hidden rounded-2xl ${className}`}>
