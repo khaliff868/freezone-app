@@ -137,6 +137,7 @@ export default function CreateListingPage() {
   const [houseTransactionType, setHouseTransactionType] = useState('');
   const [vehicleType, setVehicleType] = useState('');
   const [vehicleMake, setVehicleMake] = useState('');
+  const [vehicleSeries, setVehicleSeries] = useState('');
   const [selectedPlan, setSelectedPlan] = useState<ListingPlan | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -311,6 +312,7 @@ export default function CreateListingPage() {
         swapTerms: formData.swapTerms.trim() || null,
         images,
         plan: selectedPlan,
+        series: isVehicles && vehicleSeries.trim() ? vehicleSeries.trim() : null,
       };
       const res = await fetch('/api/listings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!res.ok) { const error = await res.json(); throw new Error(error.error || 'Failed to create listing'); }
@@ -499,6 +501,17 @@ export default function CreateListingPage() {
                   )}
                   {vehicleType && vehicleMake && (
                     <p className="text-xs text-gray-500">Will be saved as: <span className="font-semibold text-gray-700">Vehicles › {vehicleType} › {vehicleMake}</span></p>
+                  )}
+                  {isVehicles && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Series <span className="text-gray-400 font-normal">(optional)</span></label>
+                      <Input
+                        type="text"
+                        value={vehicleSeries}
+                        onChange={e => setVehicleSeries(e.target.value)}
+                        placeholder="What is your registration number? e.g. PBG 2149"
+                      />
+                    </div>
                   )}
                 </div>
               )}
